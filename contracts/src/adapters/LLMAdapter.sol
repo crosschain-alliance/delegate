@@ -8,7 +8,7 @@ contract LLMAdapter {
     mapping(uint256 => string) public queries;
 
     function query(string calldata queryText) public {
-        emit QueryCall(uint256(keccak256(abi.encodePacked(queryText, block.timestamp))), queryText);
+        emit QueryCall(uint256(keccak256(abi.encodePacked(block.chainid, queryText, block.timestamp))), queryText);
     }
 
     function respond(uint256 queryId, string calldata responseText) public {
