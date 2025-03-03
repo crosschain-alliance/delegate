@@ -4,8 +4,8 @@
 
 ## Projects
 
-- `llmAdapter`: Solidity smart contract for handling LLM queries and responses
-- `delegateRelayer`: TypeScript service for relaying queries to LLM providers
+- `contracts`: Solidity smart contract for handling LLM queries and responses
+- `relayer`: TypeScript service for relaying queries to LLM providers
 
 ## Prerequisites
 
