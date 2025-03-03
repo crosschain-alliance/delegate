@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 contract LLMAdapter {
+    error ResponseAlreadyExists(uint256 queryId);
     event QueryCall(uint256 queryId, string query);
     event QueryResponse(uint256 queryId, string response);
 
@@ -12,8 +13,11 @@ contract LLMAdapter {
     }
 
     function respond(uint256 queryId, string calldata responseText) public {
-        require(bytes(queries[queryId]).length == 0, "Response already exists for this queryId");
+        if (bytes(queries[queryId]).length != 0) {
+            revert ResponseAlreadyExists(queryId);
+        }
         queries[queryId] = responseText;
+
         emit QueryResponse(queryId, responseText);
     }
 
