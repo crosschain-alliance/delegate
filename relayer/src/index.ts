@@ -1,6 +1,6 @@
 import { createPublicClient, createWalletClient, http } from 'viem';
 import { foundry } from 'viem/chains';
-import LLMAdapterABI from '../../llmAdapter/out/LLMAdapter.sol/LLMAdapter.json';
+import LLMAdapterABI from '../../contracts/out/LLMAdapter.sol/LLMAdapter.json';
 import { parseQuery } from './llmParsers/openAiParser';
 import { privateKeyToAccount } from 'viem/accounts';
 

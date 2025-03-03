@@ -4,8 +4,8 @@
   "description": "",
   "packageManager": "npm@11.1.0",
   "workspaces": [
-    "llmAdapter",
-    "delegateRelayer"
+    "contracts",
+    "relayer"
   ],
   "scripts": {
     "build": "turbo run build",
