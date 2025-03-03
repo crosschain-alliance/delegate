@@ -17,18 +17,21 @@ contract LLMAdapterTest is Test {
         vm.label(user, "User");
     }
 
-    function test_Query() public {
+     function test_Query() public {
         string memory queryText = "What is the capital of France?";
 
         vm.expectEmit(true, true, true, true);
-        emit QueryCall(uint256(keccak256(abi.encodePacked(queryText, block.timestamp))), queryText);
+        emit QueryCall(
+            uint256(keccak256(abi.encodePacked(block.chainid, queryText, block.timestamp))), 
+            queryText
+        );
 
         adapter.query(queryText);
     }
 
     function test_Response() public {
         string memory queryText = "What is the capital of France?";
-        uint256 queryId = uint256(keccak256(abi.encodePacked(queryText, block.timestamp)));
+        uint256 queryId = uint256(keccak256(abi.encodePacked(block.chainid, queryText, block.timestamp)));
         string memory responseText = "Paris";
 
         // First query
@@ -46,12 +49,12 @@ contract LLMAdapterTest is Test {
 
     function test_RevertWhen_DuplicateResponse() public {
         string memory queryText = "What is the capital of France?";
-        uint256 queryId = uint256(keccak256(abi.encodePacked(queryText, block.timestamp)));
+        uint256 queryId = uint256(keccak256(abi.encodePacked(block.chainid, queryText, block.timestamp)));
 
         adapter.query(queryText);
         adapter.respond(queryId, "Paris");
 
-        vm.expectRevert("Response already exists for this queryId");
+        vm.expectRevert(abi.encodeWithSelector(LLMAdapter.ResponseAlreadyExists.selector, queryId));
         adapter.respond(queryId, "London");
     }
 
@@ -60,14 +63,17 @@ contract LLMAdapterTest is Test {
 
         vm.prank(user);
         vm.expectEmit(true, true, true, true);
-        emit QueryCall(uint256(keccak256(abi.encodePacked(queryText, block.timestamp))), queryText);
+        emit QueryCall(
+            uint256(keccak256(abi.encodePacked(block.chainid, queryText, block.timestamp))), 
+            queryText
+        );
 
         adapter.query(queryText);
     }
 
     function test_GetResponse() public {
         string memory queryText = "What is the capital of France?";
-        uint256 queryId = uint256(keccak256(abi.encodePacked(queryText, block.timestamp)));
+        uint256 queryId = uint256(keccak256(abi.encodePacked(block.chainid, queryText, block.timestamp)));
         string memory responseText = "Paris";
 
         adapter.query(queryText);
