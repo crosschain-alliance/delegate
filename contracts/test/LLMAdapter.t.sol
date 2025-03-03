@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {Test, console} from "forge-std/Test.sol";
-import {LLMAdapter} from "../src/LLMAdapter.sol";
+import {LLMAdapter} from "../src/adapters/LLMAdapter.sol";
 
 contract LLMAdapterTest is Test {
     LLMAdapter public adapter;

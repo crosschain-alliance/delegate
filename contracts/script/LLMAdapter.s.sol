@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {Script, console} from "forge-std/Script.sol";
-import {LLMAdapter} from "../src/LLMAdapter.sol";
+import {LLMAdapter} from "../src/adapters/LLMAdapter.sol";
 
 contract LLMAdapterDeploy is Script {
     function setUp() public {}
