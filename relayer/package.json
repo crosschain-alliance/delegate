@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "start": "ts-node src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run --silent",
+    "test:ui": "vitest --ui",
     "lint": "eslint . --ext .ts"
   },
   "keywords": [],
@@ -15,12 +16,14 @@
   "type": "commonjs",
   "devDependencies": {
     "@types/node": "^22.13.5",
-    "abitype": "^1.0.8",
-    "ts-node": "^10.9.2",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
+    "@vitest/ui": "^3.0.7",
+    "abitype": "^1.0.8",
     "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0"
+    "eslint-config-prettier": "^9.1.0",
+    "ts-node": "^10.9.2",
+    "vitest": "^3.0.7"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
