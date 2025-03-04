@@ -14,7 +14,7 @@ contract LLMAdapter is ILLMAdapter {
 
     function ask(string calldata prompt) external returns (bytes32) {
         bytes32 promptId = keccak256(abi.encodePacked(block.chainid, block.timestamp, prompt));
-        require(_promptsStatus[promptId] != PromptStatus.NotInitiated, InvalidPromptStatus());
+        require(_promptsStatus[promptId] == PromptStatus.NotInitiated, InvalidPromptStatus());
         _promptsStatus[promptId] = PromptStatus.Initiated;
         emit Asked(promptId, prompt);
         return promptId;
@@ -22,7 +22,7 @@ contract LLMAdapter is ILLMAdapter {
 
     function respond(bytes32 promptId, bytes calldata response, bytes calldata proof) external {
         // TODO: verify proof
-        require(_promptsStatus[promptId] != PromptStatus.Initiated, InvalidPromptStatus());
+        require(_promptsStatus[promptId] == PromptStatus.Initiated, InvalidPromptStatus());
         _promptsStatus[promptId] = PromptStatus.Completed;
         IDeleGate(DELEGATE).onAnswer(promptId, response);
         emit Answered(promptId, response);
