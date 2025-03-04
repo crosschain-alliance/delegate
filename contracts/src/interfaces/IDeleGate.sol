@@ -29,7 +29,7 @@ interface IDeleGate {
 
     function defineEthos(Ethos calldata ethos) external;
 
-    function onAnswer(bytes32 promptId, bytes calldata response) external;
+    function onAnswer(bytes32 promptId, bytes calldata answer) external;
 
     function setLlmAdapter(address llmAdapter_) external;
 

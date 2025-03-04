@@ -35,6 +35,8 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         // TODO: verify zkTLS proof (voteProof)
         Ethos memory ethos = usersEthos[voter];
 
+        // TODO: extract proposalId, and governor contract from vote
+
         string memory prompt = string(
             abi.encodePacked(
                 "given this vote: ",
@@ -62,23 +64,23 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         emit EthosDefined(msg.sender, ethos);
     }
 
-    function onAnswer(bytes32 promptId, bytes calldata response) external onlyRole(ON_ASWER_ROLE) {
-        // TODO: trigger KMSAdapter to sign
+    function onAnswer(bytes32 promptId, bytes calldata answer) external onlyRole(ON_ASWER_ROLE) {
+        // NOTE: answer must be = abi.encode(governorAddress, proposalId, support)
         PendingPromptData storage promptData = _pendingPromptData[promptId];
-        IKMSAdapter(kmsAdapter).sign(promptData.targetChainId, promptData.target, response);
+        IKMSAdapter(kmsAdapter).sign(promptData.targetChainId, promptData.target, answer);
         delete _pendingPromptData[promptId];
     }
 
-    function setLlmAdapter(address llmAdapter_) external onlyRole(SET_LLM_ADAPTER_ADMIN_ROLE) {
+    function setLlmAdapter(address newLlmAdapter) external onlyRole(SET_LLM_ADAPTER_ADMIN_ROLE) {
         _revokeRole(ON_ASWER_ROLE, llmAdapter);
-        _grantRole(ON_ASWER_ROLE, llmAdapter_);
-        llmAdapter = llmAdapter_;
-        emit LLMAdapterSet(llmAdapter_);
+        _grantRole(ON_ASWER_ROLE, newLlmAdapter);
+        llmAdapter = newLlmAdapter;
+        emit LLMAdapterSet(newLlmAdapter);
     }
 
-    function setKmsAdapter(address kmsAdapter_) external onlyRole(SET_KMS_ADAPTER_ADMIN_ROLE) {
-        kmsAdapter = kmsAdapter_;
-        emit KMSAdapterSet(kmsAdapter_);
+    function setKmsAdapter(address newKmsAdapter) external onlyRole(SET_KMS_ADAPTER_ADMIN_ROLE) {
+        kmsAdapter = newKmsAdapter;
+        emit KMSAdapterSet(newKmsAdapter);
     }
 
     function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
