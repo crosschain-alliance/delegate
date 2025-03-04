@@ -8,13 +8,13 @@ interface ILLMAdapter {
         Completed
     }
 
-    event Asked(bytes32 promptId, string query);
-    event Answered(bytes32 promptId, string response);
+    event Asked(bytes32 promptId, string prompt);
+    event Answered(bytes32 promptId, bytes response);
 
     error ResponseAlreadyExists(bytes32 promptId);
     error InvalidPromptStatus();
 
-    function ask(string calldata prompt) external;
+    function ask(string calldata prompt) external returns (bytes32);
 
-    function respond(bytes32 promptId, string calldata response, bytes calldata proof) external;
+    function respond(bytes32 promptId, bytes calldata response, bytes calldata proof) external;
 }

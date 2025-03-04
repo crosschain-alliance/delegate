@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
 import {ILLMAdapter} from "../interfaces/ILLMAdapter.sol";
@@ -12,18 +12,19 @@ contract LLMAdapter is ILLMAdapter {
         DELEGATE = delegate;
     }
 
-    function ask(string calldata prompt) external {
+    function ask(string calldata prompt) external returns (bytes32) {
         bytes32 promptId = keccak256(abi.encodePacked(block.chainid, block.timestamp, prompt));
         require(_promptsStatus[promptId] != PromptStatus.NotInitiated, InvalidPromptStatus());
         _promptsStatus[promptId] = PromptStatus.Initiated;
         emit Asked(promptId, prompt);
+        return promptId;
     }
 
-    function respond(bytes32 promptId, string calldata response, bytes calldata proof) external {
+    function respond(bytes32 promptId, bytes calldata response, bytes calldata proof) external {
         // TODO: verify proof
         require(_promptsStatus[promptId] != PromptStatus.Initiated, InvalidPromptStatus());
         _promptsStatus[promptId] = PromptStatus.Completed;
-        IDeleGate(DELEGATE).onAnswer();
+        IDeleGate(DELEGATE).onAnswer(promptId, response);
         emit Answered(promptId, response);
     }
 }

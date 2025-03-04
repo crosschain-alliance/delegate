@@ -5,6 +5,7 @@ import {AccessControlEnumerableUpgradeable} from
     "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import {IDeleGate} from "./interfaces/IDeleGate.sol";
 import {ILLMAdapter} from "./interfaces/ILLMAdapter.sol";
+import {IKMSAdapter} from "./interfaces/IKMSAdapter.sol";
 
 contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     bytes32 public constant SET_LLM_ADAPTER_ADMIN_ROLE = keccak256(abi.encodePacked("SET_LLM_ADAPTER_ADMIN_ROLE"));
@@ -12,6 +13,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
     bytes32 public constant ON_ASWER_ROLE = keccak256(abi.encodePacked("ON_ASWER_ROLE"));
 
     mapping(address => Ethos) public usersEthos;
+    mapping(bytes32 => PendingPromptData) private _pendingPromptData;
     address public llmAdapter;
     address public kmsAdapter;
 
@@ -23,7 +25,13 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         _grantRole(SET_KMS_ADAPTER_ADMIN_ROLE, owner);
     }
 
-    function castVoteFor(address voter, bytes calldata voteProof, string calldata vote) external {
+    function castVoteFor(
+        address voter,
+        string calldata vote,
+        uint256 targetChainId,
+        bytes calldata target,
+        bytes calldata voteProof
+    ) external {
         // TODO: verify zkTLS proof (voteProof)
         Ethos memory ethos = usersEthos[voter];
 
@@ -40,7 +48,8 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
             )
         );
 
-        ILLMAdapter(llmAdapter).ask(prompt);
+        bytes32 promptId = ILLMAdapter(llmAdapter).ask(prompt);
+        _pendingPromptData[promptId] = PendingPromptData({targetChainId: targetChainId, target: target});
     }
 
     function defineEthos(Ethos calldata ethos) external {
@@ -53,8 +62,11 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         emit EthosDefined(msg.sender, ethos);
     }
 
-    function onAnswer() external onlyRole(ON_ASWER_ROLE) {
+    function onAnswer(bytes32 promptId, bytes calldata response) external onlyRole(ON_ASWER_ROLE) {
         // TODO: trigger KMSAdapter to sign
+        PendingPromptData storage promptData = _pendingPromptData[promptId];
+        IKMSAdapter(kmsAdapter).sign(promptData.targetChainId, promptData.target, response);
+        delete _pendingPromptData[promptId];
     }
 
     function setLlmAdapter(address llmAdapter_) external onlyRole(SET_LLM_ADAPTER_ADMIN_ROLE) {
@@ -62,6 +74,11 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         _grantRole(ON_ASWER_ROLE, llmAdapter_);
         llmAdapter = llmAdapter_;
         emit LLMAdapterSet(llmAdapter_);
+    }
+
+    function setKmsAdapter(address kmsAdapter_) external onlyRole(SET_KMS_ADAPTER_ADMIN_ROLE) {
+        kmsAdapter = kmsAdapter_;
+        emit KMSAdapterSet(kmsAdapter_);
     }
 
     function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}

@@ -8,16 +8,30 @@ interface IDeleGate {
         string values;
     }
 
+    struct PendingPromptData {
+        uint256 targetChainId;
+        bytes target;
+    }
+
     event EthosDefined(address user, Ethos ethos);
     event LLMAdapterSet(address llmAdapter);
+    event KMSAdapterSet(address kmsAdapter);
 
     error InvalidEthos();
 
-    function castVoteFor(address voter, bytes calldata voteProof, string calldata vote) external;
+    function castVoteFor(
+        address voter,
+        string calldata vote,
+        uint256 targetChainId,
+        bytes calldata target,
+        bytes calldata voteProof
+    ) external;
 
     function defineEthos(Ethos calldata ethos) external;
 
-    function onAnswer() external;
+    function onAnswer(bytes32 promptId, bytes calldata response) external;
 
     function setLlmAdapter(address llmAdapter_) external;
+
+    function setKmsAdapter(address kmsAdapter_) external;
 }
