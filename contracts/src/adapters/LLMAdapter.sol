@@ -1,27 +1,29 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-contract LLMAdapter {
-    error ResponseAlreadyExists(uint256 queryId);
-    event QueryCall(uint256 queryId, string query);
-    event QueryResponse(uint256 queryId, string response);
+import {ILLMAdapter} from "../interfaces/ILLMAdapter.sol";
+import {IDeleGate} from "../interfaces/IDeleGate.sol";
 
-    mapping(uint256 => string) public queries;
+contract LLMAdapter is ILLMAdapter {
+    mapping(bytes32 => PromptStatus) private _promptsStatus;
+    address public immutable DELEGATE;
 
-    function query(string calldata queryText) public {
-        emit QueryCall(uint256(keccak256(abi.encodePacked(block.chainid, queryText, block.timestamp))), queryText);
+    constructor(address delegate) {
+        DELEGATE = delegate;
     }
 
-    function respond(uint256 queryId, string calldata responseText) public {
-        if (bytes(queries[queryId]).length != 0) {
-            revert ResponseAlreadyExists(queryId);
-        }
-        queries[queryId] = responseText;
-
-        emit QueryResponse(queryId, responseText);
+    function ask(string calldata prompt) external {
+        bytes32 promptId = keccak256(abi.encodePacked(block.chainid, block.timestamp, prompt));
+        require(_promptsStatus[promptId] != PromptStatus.NotInitiated, InvalidPromptStatus());
+        _promptsStatus[promptId] = PromptStatus.Initiated;
+        emit Asked(promptId, prompt);
     }
 
-    function getResponse(uint256 queryId) public view returns (string memory) {
-        return queries[queryId];
+    function respond(bytes32 promptId, string calldata response, bytes calldata proof) external {
+        // TODO: verify proof
+        require(_promptsStatus[promptId] != PromptStatus.Initiated, InvalidPromptStatus());
+        _promptsStatus[promptId] = PromptStatus.Completed;
+        IDeleGate(DELEGATE).onAnswer();
+        emit Answered(promptId, response);
     }
 }
