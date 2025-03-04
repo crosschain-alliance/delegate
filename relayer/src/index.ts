@@ -23,12 +23,12 @@ const walletClient = createWalletClient({
 
 const abi = LLMAdapterABI.abi;
 
-const respond = async (queryId: string, response: string) => {
+export const answer = async (promptId: string, response: string) => {
   await walletClient.writeContract({
     address: contractAddress,
     abi,
-    functionName: 'respond',
-    args: [BigInt(queryId), response],
+    functionName: 'answer',
+    args: [BigInt(promptId), response],
   });
 };
 
@@ -37,32 +37,31 @@ const main = async () => {
   publicClient.watchContractEvent({
     address: contractAddress,
     abi,
-    eventName: 'QueryCall',
+    eventName: 'Asked',
     onLogs: logs => {
       logs.forEach(async (log: any) => {
         const { args } = log;
         if (args) {
           console.log(
-            `QueryCall event received: queryId=${args.uniqueNumber}, llmQuery=${args.llmQuery}`
+            `Asked event received: queryId=${args.promptId}, llmQuery=${args.prompt}`
           );
-          const response = await parseQuery(args.llmQuery);
-          respond(args.uniqueNumber, response).catch(console.error);
+          const response = await parseQuery(args.prompt);
+          answer(args.promptId, response).catch(console.error);
         }
       });
     },
   });
 
-  // Watch for QueryResponse events
   publicClient.watchContractEvent({
     address: contractAddress,
     abi,
-    eventName: 'QueryResponse',
+    eventName: 'Answered',
     onLogs: logs => {
       logs.forEach((log: any) => {
         const { args } = log;
         if (args) {
           console.log(
-            `QueryResponse event received: queryId=${args.uniqueNumber}, llmResponse=${args.llmQuery}`
+            `Answered event received: queryId=${args.promptId}, llmResponse=${args.response}`
           );
         }
       });
