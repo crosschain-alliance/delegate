@@ -34,6 +34,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
     ) external {
         // TODO: verify zkTLS proof (voteProof)
         Ethos memory ethos = usersEthos[voter];
+        _validateEthos(ethos);
 
         // TODO: extract proposalId, and governor contract from vote
 
@@ -55,11 +56,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
     }
 
     function defineEthos(Ethos calldata ethos) external {
-        require(
-            abi.encodePacked(ethos.values).length > 0 && abi.encodePacked(ethos.principles).length > 0
-                && abi.encodePacked(ethos.interests).length > 0,
-            InvalidEthos()
-        );
+        _validateEthos(ethos);
         usersEthos[msg.sender] = ethos;
         emit EthosDefined(msg.sender, ethos);
     }
@@ -82,6 +79,14 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
     function setKmsAdapter(address newKmsAdapter) external onlyRole(SET_KMS_ADAPTER_ADMIN_ROLE) {
         kmsAdapter = newKmsAdapter;
         emit KMSAdapterSet(newKmsAdapter);
+    }
+
+    function _validateEthos(Ethos memory ethos) internal {
+        require(
+            abi.encodePacked(ethos.values).length > 0 && abi.encodePacked(ethos.principles).length > 0
+                && abi.encodePacked(ethos.interests).length > 0,
+            InvalidEthos()
+        );
     }
 
     function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
