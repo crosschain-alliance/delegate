@@ -60,6 +60,8 @@ contract KeyringDeleGateModule is
     }
 
     function updateGateway(address newGateway) external onlyRole(UPDATE_GATEWAY_ROLE) {
+        _revokeRole(ON_OPERATION_ROLE, gateway);
+        _grantRole(ON_OPERATION_ROLE, newGateway);
         gateway = newGateway;
         emit GatewayUpdated(newGateway);
     }
