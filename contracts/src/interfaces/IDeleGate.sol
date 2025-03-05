@@ -18,6 +18,7 @@ interface IDeleGate {
     event KMSAdapterSet(address kmsAdapter);
 
     error InvalidEthos();
+    error InvalidPromptData();
 
     function castVoteFor(
         address voter,

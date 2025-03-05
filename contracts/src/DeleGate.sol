@@ -67,6 +67,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
     function onAnswer(bytes32 promptId, bytes calldata answer) external onlyRole(ON_ASWER_ROLE) {
         // NOTE: answer must be = abi.encode(governorAddress, proposalId, support)
         PendingPromptData storage promptData = _pendingPromptData[promptId];
+        require(promptData.targetChainId != 0, InvalidPromptData());
         IKMSAdapter(kmsAdapter).sign(promptData.targetChainId, promptData.target, answer);
         delete _pendingPromptData[promptId];
     }
