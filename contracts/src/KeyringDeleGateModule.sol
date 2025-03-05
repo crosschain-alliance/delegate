@@ -18,6 +18,7 @@ contract KeyringDeleGateModule is
     bytes32 public constant UPDATE_GATEWAY_ROLE = keccak256("UPDATE_GATEWAY_ROLE");
     bytes32 public constant ON_OPERATION_ROLE = keccak256("ON_OPERATION_ROLE");
     bytes32 public constant UPDATE_DELEGATE_ROLE = keccak256("UPDATE_DELEGATE_ROLE");
+    bytes32 public constant UPDATE_EXPECTED_SIGNER = keccak256("UPDATE_EXPECTED_SIGNER");
 
     address public gateway;
     address public expectedSigner;
@@ -42,6 +43,7 @@ contract KeyringDeleGateModule is
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
         _grantRole(UPDATE_GATEWAY_ROLE, owner);
         _grantRole(UPDATE_DELEGATE_ROLE, owner);
+        _grantRole(UPDATE_EXPECTED_SIGNER, owner);
         _grantRole(ON_OPERATION_ROLE, gateway_);
     }
 
@@ -57,6 +59,11 @@ contract KeyringDeleGateModule is
     function updateDeleGate(address newDeleGate) external onlyRole(UPDATE_DELEGATE_ROLE) {
         deleGate = newDeleGate;
         emit DeleGateUpdated(newDeleGate);
+    }
+
+    function updateExpectedSigner(address newExpectedSigner) external onlyRole(UPDATE_EXPECTED_SIGNER) {
+        expectedSigner = newExpectedSigner;
+        emit ExpectedSignerUpdated(newExpectedSigner);
     }
 
     function updateGateway(address newGateway) external onlyRole(UPDATE_GATEWAY_ROLE) {
