@@ -10,6 +10,8 @@
     "dev": "ts-node src/index.ts",
     "test": "vitest run --silent",
     "test:ui": "vitest --ui",
+    "lint": "eslint . --ext .ts",
+    "build:docker": "npm run prepare && docker compose build",
     "acurast": "cd ../acurast_llm && npm run build && acurast deploy"
   },
   "keywords": [],
