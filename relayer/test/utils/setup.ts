@@ -7,7 +7,6 @@ beforeAll(async () => {
   anvil = await startAnvil();
   const contractAddress = await deployContract();
   process.env.CONTRACT_ADDRESS = contractAddress!;
-
 });
 
 afterAll(async () => {

@@ -42,9 +42,7 @@ const main = async () => {
       logs.forEach(async (log: any) => {
         const { args } = log;
         if (args) {
-          console.log(
-            `Asked event received: queryId=${args.promptId}, llmQuery=${args.prompt}`
-          );
+          console.log(`Asked event received: queryId=${args.promptId}, llmQuery=${args.prompt}`);
           const response = await parseQuery(args.prompt);
           answer(args.promptId, response).catch(console.error);
         }
