@@ -1,0 +1,29 @@
+{
+  "projects": {
+    "acurast_llm": {
+      "projectName": "acurast_llm",
+      "fileUrl": "dist/bundle.js",
+      "network": "canary",
+      "onlyAttestedDevices": true,
+      "assignmentStrategy": {
+        "type": "Single"
+      },
+      "execution": {
+        "type": "onetime",
+        "maxExecutionTimeInMs": 6000000
+      },
+      "maxAllowedStartDelayInMs": 10000,
+      "usageLimit": {
+        "maxMemory": 0,
+        "maxNetworkRequests": 0,
+        "maxStorage": 0
+      },
+      "numberOfReplicas": 20,
+      "requiredModules": [],
+      "minProcessorReputation": 0,
+      "maxCostPerExecution": 100000000000,
+      "includeEnvironmentVariables": ["LLM_DIRECTIVE", "LLM_PROMPT", "WEBHOOK_URL", "PROMPT_ID"],
+      "processorWhitelist": []
+    }
+  }
+}

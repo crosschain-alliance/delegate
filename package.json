@@ -5,7 +5,8 @@
   "packageManager": "npm@11.1.0",
   "workspaces": [
     "contracts",
-    "relayer"
+    "relayer",
+    "acurast_llm"
   ],
   "scripts": {
     "build": "turbo run build",
