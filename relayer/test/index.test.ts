@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { createPublicClient, createWalletClient, http } from 'viem';
 import { foundry } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
-import LLMAdapterABI from '../../contracts/out/LLMAdapter.sol/LLMAdapter.json';
+import LLMAdapterABI from '../artifacts/LLMAdapter.json';
 import { parseQuery } from '../src/llmParsers/openAiParser';
 import { respond } from '../src/index';
 

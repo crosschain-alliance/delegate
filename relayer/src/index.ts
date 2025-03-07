@@ -1,73 +1,129 @@
 import { createPublicClient, createWalletClient, http } from 'viem';
-import { foundry } from 'viem/chains';
-import LLMAdapterABI from '../../contracts/out/LLMAdapter.sol/LLMAdapter.json';
-import { parseQuery } from './llmParsers/openAiParser';
+import { foundry, sepolia, mainnet, arbitrum } from 'viem/chains';
+import LLMAdapterABI from '../artifacts/LLMAdapter.json';
+import { parseQuery } from './llmParsers/acurastParser';
 import { privateKeyToAccount } from 'viem/accounts';
+import 'dotenv/config';
 
-const contractAddress = '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9';
-const account = privateKeyToAccount(
-  '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
-);
-const rpcUrl = 'http://127.0.0.1:8545';
+if (!process.env.CONTRACT_ADDRESS || !process.env.PRIVATE_KEY || !process.env.RPC_URL || !process.env.CHAIN) {
+  throw new Error('Missing environment variables. Check .env file');
+}
+
+const chains = {
+  sepolia,
+  mainnet,
+  arbitrum,
+  foundry
+};
+
+const chain = chains[process.env.CHAIN as keyof typeof chains];
+if (!chain) {
+  throw new Error(`Invalid chain: ${process.env.CHAIN}`);
+}
+
+const contractAddress = process.env.CONTRACT_ADDRESS as `0x${string}`;
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+const rpcUrl = process.env.RPC_URL;
 
 const publicClient = createPublicClient({
-  chain: foundry,
+  chain,
   transport: http(rpcUrl),
 });
 
 const walletClient = createWalletClient({
-  chain: foundry,
+  chain,
   transport: http(rpcUrl),
   account,
 });
 
 const abi = LLMAdapterABI.abi;
 
-export const answer = async (promptId: string, response: string) => {
+export const respond = async (promptId: any, response: string) => {
   await walletClient.writeContract({
     address: contractAddress,
     abi,
-    functionName: 'answer',
-    args: [BigInt(promptId), response],
+    functionName: 'respond',
+    args: [promptId, response, '0x'],
   });
+};
+
+const handleAskedEvent = async (log: any) => {
+  const { args } = log;
+  if (!args) {
+    console.error('Received log without args');
+    return;
+  }
+
+  console.log(
+    `Asked event received: queryId=${args.promptId}, llmQuery=${args.prompt}`
+  );
+
+  try {
+    const response = await parseQuery(args.promptId, args.prompt);
+    await respond(args.promptId, response);
+  } catch (error) {
+    console.error(`Error handling Ask event for promptId=${args.promptId}:`, error);
+  }
 };
 
 const main = async () => {
   console.log(`Listening on ${rpcUrl}\nLLM Adapter address: ${contractAddress}`);
-  publicClient.watchContractEvent({
+  
+  const unwatch = publicClient.watchContractEvent({
     address: contractAddress,
     abi,
     eventName: 'Asked',
     onLogs: logs => {
-      logs.forEach(async (log: any) => {
-        const { args } = log;
-        if (args) {
-          console.log(`Asked event received: queryId=${args.promptId}, llmQuery=${args.prompt}`);
-          const response = await parseQuery(args.prompt);
-          answer(args.promptId, response).catch(console.error);
-        }
+      logs.forEach(log => {
+        // Handle each event in a separate try-catch block
+        handleAskedEvent(log).catch(error => {
+          console.error('Fatal error handling Asked event:', error);
+        });
       });
     },
   });
 
-  publicClient.watchContractEvent({
+  const unwatchAnswered = publicClient.watchContractEvent({
     address: contractAddress,
     abi,
     eventName: 'Answered',
     onLogs: logs => {
       logs.forEach((log: any) => {
-        const { args } = log;
-        if (args) {
-          console.log(
-            `Answered event received: queryId=${args.promptId}, llmResponse=${args.response}`
-          );
+        try {
+          const { args } = log;
+          if (args) {
+            console.log(
+              `Answered event received: queryId=${args.promptId}, llmResponse=${args.response}`
+            );
+          }
+        } catch (error) {
+          console.error('Error handling Answered event:', error);
         }
       });
     },
+  });
+
+  // Handle process termination
+  const cleanup = () => {
+    console.log('Cleaning up...');
+    unwatch();
+    unwatchAnswered();
+    process.exit(0);
+  };
+
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception:', error);
+    cleanup();
   });
 
   // Keep the process running
   process.stdin.resume();
 };
 
-main().catch(console.error);
+// Add error handling to the main function
+main().catch(error => {
+  console.error('Fatal error in main:', error);
+  process.exit(1);
+});
