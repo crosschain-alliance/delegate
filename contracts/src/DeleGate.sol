@@ -51,8 +51,8 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         );
 
         bytes32 promptId = ILLMAdapter(llmAdapter).ask(prompt);
-        _pendingPromptData[promptId] =
-            PendingPromptData({targetChainId: targetChainId, target: target, user: msg.sender});
+        _pendingPromptData[promptId] = PendingPromptData({targetChainId: targetChainId, target: target, voter: voter});
+        emit StartVoteCast(voter, promptId);
     }
 
     function defineEthos(Ethos calldata ethos) external {
@@ -74,9 +74,10 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         PendingPromptData storage promptData = _pendingPromptData[promptId];
         require(promptData.targetChainId != 0, InvalidPromptData());
         // TODO: parse answer
-        IKMSAdapter(_usersKmsAdapter[promptData.user]).sign(
+        IKMSAdapter(_usersKmsAdapter[promptData.voter]).sign(
             promptData.targetChainId, promptData.target, abi.encodePacked(answer)
         );
+        emit EndVoteCast(promptData.voter, promptId);
         delete _pendingPromptData[promptId];
     }
 

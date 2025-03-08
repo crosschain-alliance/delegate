@@ -8,8 +8,8 @@ interface ILLMAdapter {
         Completed
     }
 
-    event Asked(bytes32 promptId, string prompt);
-    event Answered(bytes32 promptId, string answer);
+    event Asked(bytes32 indexed promptId, string prompt);
+    event Answered(bytes32 indexed promptId, string answer);
 
     error ResponseAlreadyExists(bytes32 promptId);
     error InvalidPromptStatus();
