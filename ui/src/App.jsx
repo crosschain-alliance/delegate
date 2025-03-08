@@ -1,9 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { createPublicClient, http } from "viem";
 
 import deleGateAbi from './utils/abi/deleGate.json'
+import llmAdapterAbi from './utils/abi/llmAdapter.json'
 
 const DELEGATE_ADDRESS = "0xE9739e92f3164326aD54CE691D5E11B004C1B4f6"
+const LLM_ADAPTER_ADDRESS = "0xE9739e92f3164326aD54CE691D5E11B004C1B4f6" // TODO: replace with correct one
 
 const client = createPublicClient({
   transport: http("https://monad-testnet.drpc.org")
@@ -12,38 +14,60 @@ const client = createPublicClient({
 
 const App = () => {
   const [userAddress, setUserAddress] = useState("");
-  const userDetails = {
-    principles: ["Honesty", "Integrity", "Respect"],
-    values: ["Innovation", "Collaboration", "Excellence"],
-    interests: ["AI", "Quantum Computing", "Cybersecurity"],
-  };
-
-  const events = [
-    { id: 1, name: "Hackathon", date: "2025-03-08" },
-    { id: 2, name: "Tech Summit", date: "2025-04-12" },
-    { id: 3, name: "AI Conference", date: "2025-06-20" },
-  ];
+  const [ethos, setEthos] = useState(null)
+  const [ksmAdapter, setKmsAdapter] = useState("")
+  const events = [] // TODO: replace with real ones
 
   const onSearch = useCallback(async () => {
     try {
 
       const [ethos, ksmAdapter] = await Promise.all([
         client.readContract({
-          address: DELEGATE_ADDRESS,
           abi: deleGateAbi,
+          address: DELEGATE_ADDRESS,
           functionName: 'getUserEthos',
           args: [userAddress]
         }),
         client.readContract({
-          address: DELEGATE_ADDRESS,
           abi: deleGateAbi,
+          address: DELEGATE_ADDRESS,
           functionName: 'getUserKmsAdapter',
           args: [userAddress]
         })
       ])
 
-      console.log("data", data)
+      setEthos({
+        values: ethos.values.split(','),
+        interests: ethos.interests.split(','),
+        principles: ethos.principles.split(',')
+      })
+      setKmsAdapter(ksmAdapter)
 
+      const startVoteCastsEvents = await client.getContractEvents({
+        abi: deleGateAbi,
+        address: DELEGATE_ADDRESS,
+        eventName: 'StartVoteCast',
+        args: [userAddress]
+      })
+      const promptIds = startVoteCastsEvents.map(({ promptId }) => promptId)
+
+      const [askEvents, answerEvents] = await Promise.all([
+        Promise.all(promptIds.map(promptId => client.getContractEvents({
+          abi: llmAdapterAbi,
+          address: LLM_ADAPTER_ADDRESS,
+          eventName: 'Asked',
+          args: [promptId]
+        }))),
+        Promise.all(promptIds.map(promptId => client.getContractEvents({
+          abi: llmAdapterAbi,
+          address: LLM_ADAPTER_ADDRESS,
+          eventName: 'Answered',
+          args: [promptId]
+        })))
+      ])
+
+      console.log("askEvents", askEvents)
+      console.log("answerEvents", answerEvents)
 
     } catch (err) {
       console.error(err)
@@ -55,7 +79,6 @@ const App = () => {
 
       <header className="w-full border-b border-gray-200 bg-gray-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          {/* Logo (Replace with your own brand/logo) */}
           <div className="flex items-center space-x-2">
             <img
               src="https://via.placeholder.com/32x32"
@@ -70,9 +93,7 @@ const App = () => {
       </header>
 
       <main className="flex-1 flex items-center justify-center">
-
-        <div className="w-full max-w-4xl p-6 space-y-8">
-          {/* Header / Title */}
+        <div className="w-full max-w-4xl p- space-y-8">
           <div className="text-center space-y-2">
             <h1 className="text-3xl md:text-4xl font-bold tracking-widest">
               DeleGate
@@ -82,7 +103,6 @@ const App = () => {
             </p>
           </div>
 
-          {/* Search Input */}
           <div className="flex justify-center items-center gap-2">
             <input
               type="text"
@@ -99,14 +119,11 @@ const App = () => {
             </button>
           </div>
 
-          {/* User Details Card */}
-          <div className="border border-gray-200 rounded-xl p-6">
-
-            {/* Principles */}
+          {ethos && <div className="border border-gray-200 rounded-xl p-4">
             <div className="mb-4">
-              <h3 className="font-medium text-gray-700 mb-1">Principles</h3>
+              <h3 className="font-medium text-gray-700 mb-1 text-sm">Principles</h3>
               <div className="flex flex-wrap gap-2">
-                {userDetails.principles.map((item, idx) => (
+                {ethos.principles.map((item, idx) => (
                   <span
                     key={idx}
                     className="inline-block bg-blue-50 text-blue-600 px-3 py-1 text-xs font-semibold rounded-full"
@@ -117,11 +134,10 @@ const App = () => {
               </div>
             </div>
 
-            {/* Values */}
             <div className="mb-4">
-              <h3 className="font-medium text-gray-700 mb-1">Values</h3>
+              <h3 className="font-medium text-gray-700 mb-1 text-sm">Values</h3>
               <div className="flex flex-wrap gap-2">
-                {userDetails.values.map((item, idx) => (
+                {ethos.values.map((item, idx) => (
                   <span
                     key={idx}
                     className="inline-block bg-green-50 text-green-600 px-3 py-1 text-xs font-semibold rounded-full"
@@ -132,11 +148,10 @@ const App = () => {
               </div>
             </div>
 
-            {/* Interests */}
             <div className="">
-              <h3 className="font-medium text-gray-700 mb-1">Interests</h3>
+              <h3 className="font-medium text-gray-700 mb-1 text-sm">Interests</h3>
               <div className="flex flex-wrap gap-2">
-                {userDetails.interests.map((item, idx) => (
+                {ethos.interests.map((item, idx) => (
                   <span
                     key={idx}
                     className="inline-block bg-purple-50 text-purple-600 px-3 py-1 text-xs font-semibold rounded-full"
@@ -146,10 +161,9 @@ const App = () => {
                 ))}
               </div>
             </div>
-          </div>
+          </div>}
 
-          {/* Events Table */}
-          {events.length > 0 && <div className="border border-gray-200 rounded-xl p-6">
+          {events.length > 0 && <div className="border border-gray-200 rounded-xl p-4">
             <h2 className="text-xl font-semibold mb-4 tracking-wide">
               Past votes
             </h2>
@@ -177,7 +191,6 @@ const App = () => {
           </div>}
         </div>
       </main>
-
     </div>
   );
 }

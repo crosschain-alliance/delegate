@@ -450,6 +450,25 @@
     },
     {
         "type": "event",
+        "name": "EndVoteCast",
+        "inputs": [
+            {
+                "name": "user",
+                "type": "address",
+                "indexed": true,
+                "internalType": "address"
+            },
+            {
+                "name": "promptId",
+                "type": "bytes32",
+                "indexed": false,
+                "internalType": "bytes32"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
         "name": "EthosDefined",
         "inputs": [
             {
@@ -600,6 +619,25 @@
                 "type": "address",
                 "indexed": true,
                 "internalType": "address"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "StartVoteCast",
+        "inputs": [
+            {
+                "name": "voter",
+                "type": "address",
+                "indexed": true,
+                "internalType": "address"
+            },
+            {
+                "name": "promptId",
+                "type": "bytes32",
+                "indexed": false,
+                "internalType": "bytes32"
             }
         ],
         "anonymous": false

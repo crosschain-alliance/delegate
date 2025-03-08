@@ -1,0 +1,122 @@
+[
+    {
+        "type": "constructor",
+        "inputs": [
+            {
+                "name": "delegate",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "DELEGATE",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "ask",
+        "inputs": [
+            {
+                "name": "prompt",
+                "type": "string",
+                "internalType": "string"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "bytes32",
+                "internalType": "bytes32"
+            }
+        ],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "respond",
+        "inputs": [
+            {
+                "name": "promptId",
+                "type": "bytes32",
+                "internalType": "bytes32"
+            },
+            {
+                "name": "answer",
+                "type": "string",
+                "internalType": "string"
+            },
+            {
+                "name": "proof",
+                "type": "bytes",
+                "internalType": "bytes"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "event",
+        "name": "Answered",
+        "inputs": [
+            {
+                "name": "promptId",
+                "type": "bytes32",
+                "indexed": true,
+                "internalType": "bytes32"
+            },
+            {
+                "name": "answer",
+                "type": "string",
+                "indexed": false,
+                "internalType": "string"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "Asked",
+        "inputs": [
+            {
+                "name": "promptId",
+                "type": "bytes32",
+                "indexed": true,
+                "internalType": "bytes32"
+            },
+            {
+                "name": "prompt",
+                "type": "string",
+                "indexed": false,
+                "internalType": "string"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "error",
+        "name": "InvalidPromptStatus",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "ResponseAlreadyExists",
+        "inputs": [
+            {
+                "name": "promptId",
+                "type": "bytes32",
+                "internalType": "bytes32"
+            }
+        ]
+    }
+]
