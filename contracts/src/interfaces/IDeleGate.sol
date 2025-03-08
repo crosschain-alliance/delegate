@@ -14,11 +14,11 @@ interface IDeleGate {
         bytes target;
     }
 
-    event EndVoteCast(address indexed user, bytes32 promptId);
+    event EndVoteCast(address indexed voter, bytes32 promptId);
     event EthosDefined(address indexed user, Ethos ethos);
     event LLMAdapterSet(address llmAdapter);
     event KMSAdapterSet(address indexed user, address kmsAdapter);
-    event StartVoteCast(address indexed user, bytes32 promptId);
+    event StartVoteCast(address indexed voter, bytes32 promptId);
 
     error InvalidEthos();
     error InvalidKmsAdapter();
