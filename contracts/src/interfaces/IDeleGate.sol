@@ -32,6 +32,10 @@ interface IDeleGate {
 
     function defineEthos(Ethos calldata ethos) external;
 
+    function getUserEthos(address user) external view returns (Ethos memory);
+
+    function getUserKmsAdapter(address user) external view returns (address);
+
     function onAnswer(bytes32 promptId, string calldata answer) external;
 
     function setLlmAdapter(address llmAdapter) external;

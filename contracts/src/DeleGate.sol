@@ -11,7 +11,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
     bytes32 public constant SET_LLM_ADAPTER_ADMIN_ROLE = keccak256(abi.encodePacked("SET_LLM_ADAPTER_ADMIN_ROLE"));
     bytes32 public constant ON_ASWER_ROLE = keccak256(abi.encodePacked("ON_ASWER_ROLE"));
 
-    mapping(address => Ethos) public usersEthos;
+    mapping(address => Ethos) private _usersEthos;
     mapping(bytes32 => PendingPromptData) private _pendingPromptData;
     mapping(address => address) private _usersKmsAdapter;
     address public llmAdapter;
@@ -31,7 +31,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         bytes calldata voteProof
     ) external {
         // TODO: verify zkTLS proof (voteProof)
-        Ethos memory ethos = usersEthos[voter];
+        Ethos memory ethos = _usersEthos[voter];
         _validateEthos(ethos);
         _checkKmsAdapterExistence(msg.sender);
 
@@ -57,15 +57,26 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
 
     function defineEthos(Ethos calldata ethos) external {
         _validateEthos(ethos);
-        usersEthos[msg.sender] = ethos;
+        _usersEthos[msg.sender] = ethos;
         emit EthosDefined(msg.sender, ethos);
+    }
+
+    function getUserEthos(address user) external view returns (Ethos memory) {
+        return _usersEthos[user];
+    }
+
+    function getUserKmsAdapter(address user) external view returns (address) {
+        return _usersKmsAdapter[user];
     }
 
     function onAnswer(bytes32 promptId, string calldata answer) external onlyRole(ON_ASWER_ROLE) {
         // NOTE: answer must be = abi.encode(governorAddress, proposalId, support)
         PendingPromptData storage promptData = _pendingPromptData[promptId];
         require(promptData.targetChainId != 0, InvalidPromptData());
-        IKMSAdapter(_usersKmsAdapter[promptData.user]).sign(promptData.targetChainId, promptData.target, answer);
+        // TODO: parse answer
+        IKMSAdapter(_usersKmsAdapter[promptData.user]).sign(
+            promptData.targetChainId, promptData.target, abi.encodePacked(answer)
+        );
         delete _pendingPromptData[promptId];
     }
 
