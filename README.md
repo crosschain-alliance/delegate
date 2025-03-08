@@ -1,7 +1,5 @@
 # DeleGate
 
-
-
 ## Projects
 
 - `contracts`: Solidity smart contract for handling LLM queries and responses
@@ -16,12 +14,14 @@
 ## Installation
 
 1. Install Foundry (if not already installed):
+
 ```bash
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
 ```
 
 2. Install project dependencies:
+
 ```bash
 npm install
 ```
@@ -29,24 +29,31 @@ npm install
 ## Development
 
 ### Build
+
 Build all projects:
+
 ```bash
 npm run build
 ```
 
 ### Test
+
 Run all tests:
+
 ```bash
 npm run test
 ```
 
 ### Local Development
+
 1. Start local blockchain:
+
 ```bash
 npm run dev:anvil
 ```
 
 2. In a separate terminal, deploy contracts:
+
 ```bash
 npm run dev:deploy
 ```
@@ -54,11 +61,13 @@ npm run dev:deploy
 ### Code Quality
 
 Format code:
+
 ```bash
 npm run format
 ```
 
 Lint code:
+
 ```bash
 npm run lint
 ```
@@ -80,6 +89,7 @@ npm run lint
 ## Environment Variables
 
 Create a `.env` file in the root directory:
+
 ```bash
 OPENAI_API_KEY=your_api_key_here
 ```
