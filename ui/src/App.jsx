@@ -1,0 +1,185 @@
+import { useCallback, useState } from "react";
+import { createPublicClient, http } from "viem";
+
+import deleGateAbi from './utils/abi/deleGate.json'
+
+const DELEGATE_ADDRESS = "0xE9739e92f3164326aD54CE691D5E11B004C1B4f6"
+
+const client = createPublicClient({
+  transport: http("https://monad-testnet.drpc.org")
+})
+
+
+const App = () => {
+  const [userAddress, setUserAddress] = useState("");
+  const userDetails = {
+    principles: ["Honesty", "Integrity", "Respect"],
+    values: ["Innovation", "Collaboration", "Excellence"],
+    interests: ["AI", "Quantum Computing", "Cybersecurity"],
+  };
+
+  const events = [
+    { id: 1, name: "Hackathon", date: "2025-03-08" },
+    { id: 2, name: "Tech Summit", date: "2025-04-12" },
+    { id: 3, name: "AI Conference", date: "2025-06-20" },
+  ];
+
+  const onSearch = useCallback(async () => {
+    try {
+
+      const [ethos, ksmAdapter] = await Promise.all([
+        client.readContract({
+          address: DELEGATE_ADDRESS,
+          abi: deleGateAbi,
+          functionName: 'getUserEthos',
+          args: [userAddress]
+        }),
+        client.readContract({
+          address: DELEGATE_ADDRESS,
+          abi: deleGateAbi,
+          functionName: 'getUserKmsAdapter',
+          args: [userAddress]
+        })
+      ])
+
+      console.log("data", data)
+
+
+    } catch (err) {
+      console.error(err)
+    }
+  }, [userAddress])
+
+  return (
+    <div className="min-h-screen bg-white text-gray-800 flex flex-col">
+
+      <header className="w-full border-b border-gray-200 bg-gray-50">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          {/* Logo (Replace with your own brand/logo) */}
+          <div className="flex items-center space-x-2">
+            <img
+              src="https://via.placeholder.com/32x32"
+              alt="DeleGate Logo"
+              className="h-8 w-8 rounded-md"
+            />
+            <span className="text-xl font-bold tracking-wide">
+              DeleGate
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 flex items-center justify-center">
+
+        <div className="w-full max-w-4xl p-6 space-y-8">
+          {/* Header / Title */}
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl md:text-4xl font-bold tracking-widest">
+              DeleGate
+            </h1>
+            <p className="text-sm md:text-base text-gray-500 tracking-wide">
+              bla bla bla bla
+            </p>
+          </div>
+
+          {/* Search Input */}
+          <div className="flex justify-center items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search user data..."
+              value={userAddress}
+              onChange={(e) => setUserAddress(e.target.value)}
+              className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={onSearch}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors cursor-pointer"
+            >
+              Search
+            </button>
+          </div>
+
+          {/* User Details Card */}
+          <div className="border border-gray-200 rounded-xl p-6">
+
+            {/* Principles */}
+            <div className="mb-4">
+              <h3 className="font-medium text-gray-700 mb-1">Principles</h3>
+              <div className="flex flex-wrap gap-2">
+                {userDetails.principles.map((item, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-block bg-blue-50 text-blue-600 px-3 py-1 text-xs font-semibold rounded-full"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Values */}
+            <div className="mb-4">
+              <h3 className="font-medium text-gray-700 mb-1">Values</h3>
+              <div className="flex flex-wrap gap-2">
+                {userDetails.values.map((item, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-block bg-green-50 text-green-600 px-3 py-1 text-xs font-semibold rounded-full"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Interests */}
+            <div className="">
+              <h3 className="font-medium text-gray-700 mb-1">Interests</h3>
+              <div className="flex flex-wrap gap-2">
+                {userDetails.interests.map((item, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-block bg-purple-50 text-purple-600 px-3 py-1 text-xs font-semibold rounded-full"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Events Table */}
+          {events.length > 0 && <div className="border border-gray-200 rounded-xl p-6">
+            <h2 className="text-xl font-semibold mb-4 tracking-wide">
+              Past votes
+            </h2>
+            <table className="w-full text-left">
+              <thead className="border-b border-gray-300 text-gray-600 uppercase text-xs tracking-wider">
+                <tr>
+                  <th className="pb-2">ID</th>
+                  <th className="pb-2">Event Name</th>
+                  <th className="pb-2">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((event) => (
+                  <tr
+                    key={event.id}
+                    className="border-b border-gray-200 last:border-none hover:bg-gray-100 transition-colors"
+                  >
+                    <td className="py-2 text-sm">{event.id}</td>
+                    <td className="py-2 text-sm font-medium">{event.name}</td>
+                    <td className="py-2 text-sm">{event.date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>}
+        </div>
+      </main>
+
+    </div>
+  );
+}
+
+export default App
