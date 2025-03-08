@@ -4,15 +4,19 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
-    "start": "ts-node src/index.ts",
+    "prepare": "scripts/prepare.sh",
+    "build": "npm run prepare && tsc",
+    "start": "node dist/src/index.js",
+    "dev": "ts-node src/index.ts",
     "test": "vitest run --silent",
     "test:ui": "vitest --ui",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint . --ext .ts",
+    "build:docker": "npm run prepare && docker compose build",
+    "acurast": "cd ../acurast_llm && npm run build && acurast deploy"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
     "@types/node": "^22.13.5",

@@ -1,123 +1,92 @@
-import path from 'path';
-import { createWriteStream, existsSync } from 'fs';
-import { Readable } from 'stream';
-import { finished } from 'stream/promises';
-import { OpenAI } from 'openai';
+import { config } from 'dotenv';
+import { encodeAbiParameters, parseAbiParameters } from 'viem';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import axios from 'axios';
+import fs from 'fs';
 
-const WEBHOOK_URL = 'https://webhook.site/77636e0f-3633-4a05-bf85-37310e0b07f5';
+config();
 
-declare let _STD_: any;
+const execAsync = promisify(exec);
+const ACURAST_MNEMONIC = process.env.ACURAST_MNEMONIC;
+const WEBHOOK_SITE_API = process.env.WEBHOOK_SITE_API;
+const DIRECTIVE = process.env.DIRECTIVE;
+const TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
+const RETRY_MS = 30000; // 30 seconds
 
-if (typeof _STD_ === 'undefined') {
-  // If _STD_ is not defined, we know it's not running in the Acurast Cloud.
-  // Define _STD_ here for local testing.
-  console.log('Running in local environment');
-  (global as any)._STD_ = {
-    app_info: { version: 'local' },
-    job: { getId: () => 'local', storageDir: './' },
-    device: { getAddress: () => 'local' },
-  };
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export const MODEL_URL =
-  'https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf';
-export const MODEL_NAME = 'Qwen2.5-0.5B-Instruct-Q4_K_M.gguf';
+async function fetchWebhookData(_promptId: string): Promise<string | null> {
+  const startTime = Date.now();
 
-export const STORAGE_DIR = _STD_.job.storageDir;
+  console.log(`Waiting response for request ${_promptId} ...`);
+  while (true) {
+    try {
+      const response = await axios.get(`https://webhook.site/token/${WEBHOOK_SITE_API}/requests`);
+      const requests = response.data.data;
 
-const MODEL_FILE = path.resolve(STORAGE_DIR, MODEL_NAME);
-async function downloadModel(url: string, destination: string) {
-  console.log('Downloading model', MODEL_NAME);
-  const res = await fetch(url);
+      if (requests.length === 0) {
+        // console.log('No requests found');
+      } else {
+        // Find the request with the target promptId
+        for (const request of requests) {
+          const requestData = JSON.parse(request.content);
 
-  if (!res.body) {
-    throw new Error('No response body');
-  }
+          if (requestData.promptId === _promptId) {
+            console.log('Response collected')
+            return requestData.response;
+          }
+        }
+      }
 
-  console.log('Writing model to file:', destination);
-  const writer = createWriteStream(destination);
-  await finished(Readable.fromWeb(res.body as any).pipe(writer));
-}
-async function main() {
-  await fetch(WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message: 'starting',
-      timestamp: Date.now(),
-    }),
-  });
+      await delay(RETRY_MS);
 
-  if (!existsSync(MODEL_FILE)) {
-    await downloadModel(MODEL_URL, MODEL_FILE);
-  } else {
-    console.log('Using already downloaded model:', MODEL_FILE);
-  }
-  console.log('Model downloaded, starting server...');
-
-  _STD_.llama.server.start(
-    ['--model', MODEL_FILE, '--ctx-size', '2048', '--threads', '8'],
-    () => {
-      // onCompletion
-      console.log('Llama server closed.');
-    },
-    (error: any) => {
-      // onError
-      console.log('Llama server error:', error);
+      // Check if the timeout has been reached
+      if (Date.now() - startTime > TIMEOUT_MS) {
+        console.log('Timeout reached. Stopping fetch.');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching webhook data:', error);
       throw error;
     }
-  );
-
-  let openai;
-  try {
-    openai = new OpenAI({
-      baseURL: 'http://localhost:8080/v1',
-      apiKey: 'lm-studio',
-    });
-  } catch (_e: any) {
-    await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        error: _e.toString(),
-        timestamp: Date.now(),
-      }),
-    });
   }
-
-  if (!openai) throw new Error('error init openai');
-
-  const msg = openai.models.list();
-
-  await fetch(WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message: 'fetching ai',
-      models: msg,
-      timestamp: Date.now(),
-    }),
-  });
-
-  const directive = `\nFor each question return the answer in the form of an array with the index of each answer which answer is yes`;
-  const input = 'Is Paris the capital of France? Is Rome the capital of Germany?';
-
-  const response = await openai.chat.completions.create({
-    model: 'Qwen2.5-0.5B-Instruct-Q4_K_M',
-    messages: [
-      { role: 'system', content: directive },
-      { role: 'user', content: input },
-    ],
-  });
-
-  await fetch(WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      timestamp: Date.now(),
-      response: response.choices[0].message.content,
-    }),
-  });
 }
 
-main();
+export async function parseQuery(promptId: string, input: string): Promise<string> {
+  try {
+    const envFilePath = '/home/envin/Work/substance_labs/delegate/acurast_llm/.env';
+    if (fs.existsSync(envFilePath)) {
+      fs.unlinkSync(envFilePath);
+    }
+    const envVariables = `ACURAST_MNEMONIC=${ACURAST_MNEMONIC}\nPROMPT_ID=${promptId}\nLLM_PROMPT=${input}\nWEBHOOK_URL=https://webhook.site/${WEBHOOK_SITE_API}\nLLM_DIRECTIVE=${DIRECTIVE}`;
+    fs.appendFileSync(envFilePath, envVariables);
+
+
+    console.log('Starting Acurast ...')
+    await execAsync('npm run acurast');
+    console.log('Acurast started')
+
+    // Fetch the target response from Webhook.site
+    const targetResponse = await fetchWebhookData(promptId);
+
+    if (!targetResponse) {
+      console.log('Target response not found within the timeout period.');
+      return '';
+    }
+
+    console.log('Target Response:', targetResponse);
+
+    const encodedResponse = encodeAbiParameters(
+      parseAbiParameters('string'),
+      [targetResponse || '']
+    );
+
+    return encodedResponse;
+  } catch (error: any) {
+    console.error('Error:', error);
+    return '';
+  }
+}

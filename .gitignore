@@ -14,6 +14,9 @@ out/
 broadcast/
 
 # Environment variables
+**/.env
+**/.env.local
+**/.env.*.local
 .env
 .env.local
 .env.*.local
@@ -34,3 +37,10 @@ broadcast/
 # Logs
 logs
 *.log
+**/.log
+
+# Acurast
+**/.acurast
+
+# Relayer
+relayer/artifacts
