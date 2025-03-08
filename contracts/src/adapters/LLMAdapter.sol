@@ -20,11 +20,11 @@ contract LLMAdapter is ILLMAdapter {
         return promptId;
     }
 
-    function respond(bytes32 promptId, bytes calldata response, bytes calldata proof) external {
+    function respond(bytes32 promptId, string calldata answer, bytes calldata proof) external {
         // TODO: verify proof
         require(_promptsStatus[promptId] == PromptStatus.Initiated, InvalidPromptStatus());
         _promptsStatus[promptId] = PromptStatus.Completed;
-        IDeleGate(DELEGATE).onAnswer(promptId, response);
-        emit Answered(promptId, response);
+        IDeleGate(DELEGATE).onAnswer(promptId, answer);
+        emit Answered(promptId, answer);
     }
 }
