@@ -8,7 +8,7 @@ library JsonParser {
     /// @notice Parses a JSON string representing a uint256 array (e.g. "[0,6,2]") and returns the decoded uint256 array.
     /// @param json The input JSON string.
     /// @return numbers The decoded uint256 array.
-    function parseUintArray(string memory json) public pure returns (uint256[] memory numbers) {
+    function parseUintArray(string memory json) internal pure returns (uint256[] memory numbers) {
         bytes memory b = bytes(json);
         require(b.length >= 2, InvalidJsonArray());
         require(b[0] == "[" && b[b.length - 1] == "]", InvalidJsonArray());

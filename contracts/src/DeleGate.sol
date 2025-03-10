@@ -78,7 +78,6 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
     }
 
     function onAnswer(bytes32 promptId, string calldata answer) external onlyRole(ON_ASWER_ROLE) {
-        // NOTE: answer must be = abi.encode(governorAddress, proposalId, support)
         PendingPromptData storage promptData = _pendingPromptData[promptId];
         require(promptData.targetChainId != 0, InvalidPromptData());
 
