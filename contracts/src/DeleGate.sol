@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlEnumerableUpgradeable} from
     "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
+import {JsonParser} from "./libraries/JsonParser.sol";
 import {IDeleGate} from "./interfaces/IDeleGate.sol";
 import {ILLMAdapter} from "./interfaces/ILLMAdapter.sol";
 import {IKMSAdapter} from "./interfaces/IKMSAdapter.sol";
@@ -23,10 +24,12 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         _grantRole(SET_LLM_ADAPTER_ADMIN_ROLE, owner);
     }
 
-    function castVoteFor(
+    function castGovernorVoteFor(
         address voter,
         string calldata vote,
         uint256 targetChainId,
+        address governor,
+        uint256 proposalId,
         bytes calldata target,
         bytes calldata voteProof
     ) external {
@@ -51,7 +54,12 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         );
 
         bytes32 promptId = ILLMAdapter(llmAdapter).ask(prompt);
-        _pendingPromptData[promptId] = PendingPromptData({targetChainId: targetChainId, target: target, voter: voter});
+        _pendingPromptData[promptId] = PendingPromptData({
+            targetChainId: targetChainId,
+            target: target,
+            voter: voter,
+            data: abi.encode(governor, proposalId)
+        });
         emit StartVoteCast(voter, promptId);
     }
 
@@ -73,9 +81,13 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         // NOTE: answer must be = abi.encode(governorAddress, proposalId, support)
         PendingPromptData storage promptData = _pendingPromptData[promptId];
         require(promptData.targetChainId != 0, InvalidPromptData());
-        // TODO: parse answer
+
+        (address governor, uint256 proposalId) = abi.decode(promptData.data, (address, uint256));
+
         IKMSAdapter(_usersKmsAdapter[promptData.voter]).sign(
-            promptData.targetChainId, promptData.target, abi.encodePacked(answer)
+            promptData.targetChainId,
+            promptData.target,
+            abi.encode(governor, proposalId, JsonParser.parseUintArray(answer)[0])
         );
         emit EndVoteCast(promptData.voter, promptId);
         delete _pendingPromptData[promptId];

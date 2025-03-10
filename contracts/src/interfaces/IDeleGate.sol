@@ -12,6 +12,7 @@ interface IDeleGate {
         uint256 targetChainId;
         address voter;
         bytes target;
+        bytes data;
     }
 
     event EndVoteCast(address indexed voter, bytes32 promptId);
@@ -24,10 +25,12 @@ interface IDeleGate {
     error InvalidKmsAdapter();
     error InvalidPromptData();
 
-    function castVoteFor(
+    function castGovernorVoteFor(
         address voter,
         string calldata vote,
         uint256 targetChainId,
+        address governor,
+        uint256 proposalId,
         bytes calldata target,
         bytes calldata voteProof
     ) external;
