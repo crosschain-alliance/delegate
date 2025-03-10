@@ -70,7 +70,7 @@ const App = () => {
   const [ksmAdapter, setKmsAdapter] = useState("")
   const [modalsOpens, setModalsOpen] = useState({})
   const [askEvents, setAskEvents] = useState([])
-  const [answerEvents, setAnswerEvents] = useState([])
+  const [answerEvents, setAnswerEvents] = useState({})
 
   const onSearch = useCallback(async () => {
     try {
@@ -249,11 +249,14 @@ const App = () => {
                 </thead>
                 <tbody>
                   {askEvents.map((event, index) => {
+                    const answerEvent = answerEvents.find(({ args }) => args.promptId === event.args.promptId)
                     return (
                       <tr key={"event" + index} className="border-b border-gray-200 last:border-none ">
                         <td className="py-2 text-sm">#{index + 1}</td>
                         <td className="py-2 text-sm font-bold">{parseProposalText(hexToString(event.data)).title}</td>
-                        <td className="py-2 text-sm">{answerEvents[index] || "NOT VOTED"}</td>
+                        <td className="py-2 text-sm">
+                          {answerEvent ? (JSON.parse(answerEvent.args.answer)[0] === 0 ? "NO" : "YES") : "NOT VOTED"}
+                        </td>
                         <td
                           className="py-2 text-sm text-blue-500 underline cursor-pointer"
                           onClick={() => {
