@@ -12,7 +12,7 @@ const ACURAST_MNEMONIC = process.env.ACURAST_MNEMONIC;
 const WEBHOOK_SITE_API = process.env.WEBHOOK_SITE_API;
 const DIRECTIVE = process.env.DIRECTIVE;
 const TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
-const RETRY_MS = 30000; // 30 seconds
+const RETRY_MS = 10000; // 10 seconds
 
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -21,20 +21,38 @@ function delay(ms: number) {
 async function fetchWebhookData(_promptId: string): Promise<string | null> {
   const startTime = Date.now();
 
-  console.log(`Waiting response for request ${_promptId} ...`);
+  console.log(`Priming llm model ...`);
+  // let modelDownloadProgress = 0;
+  let isDownloaded = false;
   while (true) {
     try {
       const response = await axios.get(`https://webhook.site/token/${WEBHOOK_SITE_API}/requests`);
       const requests = response.data.data;
 
-      if (requests.length === 0) {
-        // console.log('No requests found');
-      } else {
-        // Find the request with the target promptId
+      if (requests.length > 0) {
         for (const request of requests) {
-          const requestData = JSON.parse(request.content);
+          let requestData;
+          try {
+            requestData = JSON.parse(request.content);
+            if (requestData.promptId !== _promptId) {
+              continue;
+            }
+          } catch (_e: any) {
+            console.log(_e.toString())
+          }
 
-          if (requestData.promptId === _promptId) {
+          if (requestData.message == 'Downloaded' && !isDownloaded) {
+            isDownloaded = true;
+            console.log(`Waiting response for request ${_promptId} ...`);
+          }
+
+          // if (Number(requestData.progress) > modelDownloadProgress) {
+          //   console.log(`Model loading: ${Number(requestData.progress)}%`)
+          //   modelDownloadProgress = requestData.progress
+          //   console.log()
+          // }
+
+          if (requestData.response) {
             console.log('Response collected')
             return requestData.response;
           }
@@ -66,27 +84,49 @@ export async function parseQuery(promptId: string, input: string): Promise<strin
 
 
     console.log('Starting Acurast ...')
-    await execAsync('npm run acurast');
-    console.log('Acurast started')
+    const acurastOut = await execAsync('npm run acurast');
+
+    let deploymentId
+    const deploymentIdMatch = acurastOut.stdout.match(/Deployment registered \(ID: (\d+)\)/);
+    if (deploymentIdMatch) {
+      deploymentId = deploymentIdMatch[1];
+      console.log(`Deployment ID: ${deploymentId}`);
+    } else {
+      console.log('Deployment ID not found: Cleanup process manually.');
+    }
 
     // Fetch the target response from Webhook.site
     const targetResponse = await fetchWebhookData(promptId);
-
     if (!targetResponse) {
       console.log('Target response not found within the timeout period.');
       return '';
     }
+    let cleanedResponse = targetResponse.replace(/```|json|\s/g, '');
+    if (!cleanedResponse.startsWith('"')) {
+      cleanedResponse = '"' + cleanedResponse;
+    }
+    if (!cleanedResponse.endsWith('"')) {
+      cleanedResponse = cleanedResponse + '"';
+    }
+    console.log('Target Response:', cleanedResponse);
 
-    console.log('Target Response:', targetResponse);
+    if (deploymentId) {
+      console.log('Cleaning up Acurast process ...')
+      await execAsync(`acurast deployments ${deploymentId} --cleanup`);
+    }
 
     const encodedResponse = encodeAbiParameters(
       parseAbiParameters('string'),
-      [targetResponse || '']
+      [cleanedResponse || '']
     );
 
     return encodedResponse;
   } catch (error: any) {
     console.error('Error:', error);
-    return '';
+    const errorResponse = encodeAbiParameters(
+      parseAbiParameters('string'),
+      ['']
+    );
+    return errorResponse;
   }
 }
