@@ -9,10 +9,14 @@ contract DeleGateDeploy is Script {
     function setUp() public {}
 
     function run() public {
-        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
+        uint256 deployerPrivateKey =
+            vm.envOr("PRIVATE_KEY", uint256(0xa207dae2dfe8fee4ec7cf676c0e22d87e757b021cff44ac16ed48efd9a7ca066));
 
-        address proxy =
-            Upgrades.deployUUPSProxy("DeleGate.sol", abi.encodeCall(DeleGate.initialize, (vm.envAddress("OWNER"))));
+        vm.startBroadcast(deployerPrivateKey);
+
+        address proxy = Upgrades.deployUUPSProxy(
+            "DeleGate.sol", abi.encodeCall(DeleGate.initialize, (0xc36f349c41aE65a77B61CaD7488D67699a89E07C))
+        );
 
         console.log("DeleGate deployed to:", address(proxy));
 
