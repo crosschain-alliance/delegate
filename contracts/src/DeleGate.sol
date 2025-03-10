@@ -26,19 +26,16 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
 
     function castGovernorVoteFor(
         address voter,
-        string calldata vote,
         uint256 targetChainId,
         address governor,
         uint256 proposalId,
+        string calldata vote,
         bytes calldata target,
         bytes calldata voteProof
     ) external {
         // TODO: verify zkTLS proof (voteProof)
         Ethos memory ethos = _usersEthos[voter];
-        _validateEthos(ethos);
-        _checkKmsAdapterExistence(msg.sender);
-
-        // TODO: extract proposalId, and governor contract from vote
+        _checkKmsAdapterExistence(voter);
 
         string memory prompt = string(
             abi.encodePacked(

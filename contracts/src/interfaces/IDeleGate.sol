@@ -27,10 +27,10 @@ interface IDeleGate {
 
     function castGovernorVoteFor(
         address voter,
-        string calldata vote,
         uint256 targetChainId,
         address governor,
         uint256 proposalId,
+        string calldata vote,
         bytes calldata target,
         bytes calldata voteProof
     ) external;
