@@ -53,7 +53,7 @@
   },
   {
     "type": "function",
-    "name": "castVoteFor",
+    "name": "castGovernorVoteFor",
     "inputs": [
       {
         "name": "voter",
@@ -61,19 +61,29 @@
         "internalType": "address"
       },
       {
-        "name": "vote",
-        "type": "string",
-        "internalType": "string"
-      },
-      {
         "name": "targetChainId",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "target",
-        "type": "bytes",
-        "internalType": "bytes"
+        "name": "governor",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "proposalId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "vote",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "module",
+        "type": "address",
+        "internalType": "address"
       },
       {
         "name": "voteProof",
@@ -413,6 +423,29 @@
   },
   {
     "type": "function",
+    "name": "subscribe",
+    "inputs": [
+      {
+        "name": "targetChainId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "dao",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "module",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "supportsInterface",
     "inputs": [
       {
@@ -453,7 +486,7 @@
     "name": "EndVoteCast",
     "inputs": [
       {
-        "name": "user",
+        "name": "voter",
         "type": "address",
         "indexed": true,
         "internalType": "address"
@@ -644,6 +677,37 @@
   },
   {
     "type": "event",
+    "name": "Subscribed",
+    "inputs": [
+      {
+        "name": "targetChainId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "dao",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "voter",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "module",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Upgraded",
     "inputs": [
       {
@@ -710,6 +774,11 @@
   },
   {
     "type": "error",
+    "name": "InvalidCharacter",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvalidEthos",
     "inputs": []
   },
@@ -720,7 +789,7 @@
   },
   {
     "type": "error",
-    "name": "InvalidKmsAdapter",
+    "name": "InvalidJsonArray",
     "inputs": []
   },
   {
@@ -730,7 +799,17 @@
   },
   {
     "type": "error",
+    "name": "KmsAdapterNotSet",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "NotInitializing",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SubscriptionNotFound",
     "inputs": []
   },
   {
