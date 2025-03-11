@@ -11,24 +11,33 @@ import keyringDeleGateModuleBytecode from "./utils/bytecodes/keyringDeleGateModu
 import keyringDeleGateModuleAbi from "./utils/abi/keyringDeleGateModule.json"
 import kmsAdapterAbi from "./utils/abi/kmsAdapter.json"
 import deleGateAbi from "./utils/abi/deleGate.json"
+import governorAbi from "./utils/abi/governor.json"
 import kmsAdapterBytecode from "./utils/bytecodes/kmsAdapter.json"
 
 import Header from "./components/complex/Header"
 import EditEthosModal from "./components/complex/EditEthosModal"
+import VotesModal from "./components/complex/VotesModal"
 
 const sliceAddress = (address) => `${address.slice(0, 6)}...${address.slice(address.length - 4, address.length)}`
 
 export default () => {
   const [showEditEthosModal, setShowEditEthosModal] = useState(false)
+  const [showVotesModal, setShowVotesModal] = useState(false)
   const [ethos, setEthos] = useState()
   const [subscriptionEvents, setSubscriptionEvents] = useState([])
+  const [numberOfVotes, setNumberOfVotes] = useState([])
+  const [votes, setVotes] = useState([])
   const [kmsAdapter, setKmsAdapter] = useState()
   const { data: walletClient } = useWalletClient({ config })
-  const account = useAccount()
+  const account = {address: "0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8"} // useAccount()
 
   useEffect(() => {
     if (account.address) fetchUserData()
   }, [account])
+
+  useEffect(() => {
+    if (subscriptionEvents) getSubscriptionVotes()
+  }, [subscriptionEvents])
 
   const fetchEthos = useCallback(async () => {
     try {
@@ -48,7 +57,7 @@ export default () => {
         principles: ethos.principles.split(","),
       })
     } catch (err) {
-      console.err(err)
+      console.error(err)
     }
   }, [])
 
@@ -172,6 +181,34 @@ export default () => {
     },
     [walletClient],
   )
+
+  const getSubscriptionVotes = useCallback(async () => {
+    const client = createPublicClient({
+      transport: http("https://arb-mainnet.g.alchemy.com/v2/c_lEuDySbbwy5iWTXupQNZbWbo--pJ45"),
+    })
+    const numberofVotes = subscriptionEvents.map(async (subscription) => {
+      const voteEvents = await fetchEvents(
+        client,
+        client.getBlockNumber() - 15000n,
+        ({ fromBlock, toBlock }) =>
+          client.getContractEvents({
+            abi: governorAbi,
+            address: subscription.dao.address,
+            args: {
+              voter: [account.address],
+            },
+            eventName: "VoteCast",
+            fromBlock,
+            strict: true,
+            toBlock,
+          }),
+      )
+      setVotes(voteEvents)
+      return voteEvents.length
+    })
+
+    setNumberOfVotes(numberofVotes)
+  })
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -319,7 +356,14 @@ export default () => {
                             {sliceAddress(subscription.eventArgs.module)}
                           </a>
                         </td>
-                        <td className="py-2">{/* Put your dynamic vote count or text here */}#</td>
+                        <td className="py-2">
+                          <button
+                            onClick={() => setShowVotesModal(true)}
+                            className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer"
+                          >
+                            {numberOfVotes}
+                          </button>
+                        </td>
                       </tr>
                     )
                   })}
@@ -343,6 +387,12 @@ export default () => {
           setShowEditEthosModal(false)
           fetchEthos()
         }}
+      />
+
+      <VotesModal
+        isOpen={showVotesModal}
+        votes={votes}
+        onClose={() => setShowVotesModal(false)}
       />
     </div>
   )
