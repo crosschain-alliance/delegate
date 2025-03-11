@@ -1,10 +1,10 @@
-const parseProposalText = (text: string) => {
+const parseProposalText = (text) => {
   const multilineText = text.replace(/(#+)\s+/g, '\n$1 ');
   return parseProposal(multilineText);
 }
 
 
-const parseProposal = (text: string) => {
+const parseProposal = (text) => {
   const titleMatch = text.match(/^#\s+(.*)$/m);
   const title = titleMatch ? titleMatch[1].trim() : '';
 
@@ -33,7 +33,7 @@ const parseProposal = (text: string) => {
   };
 }
 
-const discardUselessTextFromProposal = (text: string) => {
+const discardUselessTextFromProposal = (text) => {
   const firstHashIndex = text.indexOf('#');
   const marker = "Consider to return a result based on the following interests:";
   const markerIndex = text.indexOf(marker);
