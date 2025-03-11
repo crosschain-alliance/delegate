@@ -14,10 +14,12 @@ import deleGateAbi from "./utils/abi/deleGate.json"
 import kmsAdapterBytecode from "./utils/bytecodes/kmsAdapter.json"
 
 import Header from "./components/complex/Header"
+import EditEthosModal from "./components/complex/EditEthosModal"
 
 const sliceAddress = (address) => `${address.slice(0, 6)}...${address.slice(address.length - 4, address.length)}`
 
 export default () => {
+  const [showEditEthosModal, setShowEditEthosModal] = useState(false)
   const [ethos, setEthos] = useState()
   const [subscriptionEvents, setSubscriptionEvents] = useState([])
   const [kmsAdapter, setKmsAdapter] = useState()
@@ -28,33 +30,44 @@ export default () => {
     if (account.address) fetchUserData()
   }, [account])
 
-  const fetchUserData = useCallback(async () => {
+  const fetchEthos = useCallback(async () => {
     try {
       const client = createPublicClient({
         transport: http("https://monad-testnet.g.alchemy.com/v2/c_lEuDySbbwy5iWTXupQNZbWbo--pJ45"),
       })
-      const [ethos, kmsAdapter] = await Promise.all([
-        client.readContract({
-          abi: deleGateAbi,
-          address: settings.contractAddresses[monadTestnet.id].deleGate,
-          functionName: "getUserEthos",
-          args: [account.address],
-        }),
-        client.readContract({
-          abi: deleGateAbi,
-          address: settings.contractAddresses[monadTestnet.id].deleGate,
-          functionName: "getUserKmsAdapter",
-          args: [account.address],
-        }),
-      ])
-
-      setKmsAdapter(kmsAdapter)
+      const ethos = await client.readContract({
+        abi: deleGateAbi,
+        address: settings.contractAddresses[monadTestnet.id].deleGate,
+        functionName: "getUserEthos",
+        args: [account.address],
+      })
 
       setEthos({
         values: ethos.values.split(","),
         interests: ethos.interests.split(","),
         principles: ethos.principles.split(","),
       })
+    } catch (err) {
+      console.err(err)
+    }
+  }, [])
+
+  const fetchUserData = useCallback(async () => {
+    try {
+      const client = createPublicClient({
+        transport: http("https://monad-testnet.g.alchemy.com/v2/c_lEuDySbbwy5iWTXupQNZbWbo--pJ45"),
+      })
+      const [kmsAdapter] = await Promise.all([
+        client.readContract({
+          abi: deleGateAbi,
+          address: settings.contractAddresses[monadTestnet.id].deleGate,
+          functionName: "getUserKmsAdapter",
+          args: [account.address],
+        }),
+        fetchEthos(),
+      ])
+
+      setKmsAdapter(kmsAdapter)
 
       const subscriptionEvents = await fetchEvents(
         client,
@@ -151,7 +164,7 @@ export default () => {
             args: [targetChainId, daoAddress, keyringDeleGateModule],
             chain: monadTestnet,
           })
-          console.log("txHash", txHash)
+          console.log("transaction hash:", txHash)
         }
       } catch (err) {
         console.error(err)
@@ -172,7 +185,7 @@ export default () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800">User Ethos</h2>
             <button
-              onClick={console.log}
+              onClick={() => setShowEditEthosModal(true)}
               className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer"
             >
               Modify
@@ -235,7 +248,7 @@ export default () => {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="py-2 text-left font-medium">Name</th>
-                    <th className="py-2 text-left font-medium">Action</th>
+                    <th className="py-2 text-left font-medium"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -321,6 +334,16 @@ export default () => {
       <footer className="py-4 text-center text-sm text-gray-500">
         © {new Date().getFullYear()} Substance Labs. All rights reserved.
       </footer>
+
+      <EditEthosModal
+        isOpen={showEditEthosModal}
+        currentEthos={ethos}
+        onClose={() => setShowEditEthosModal(false)}
+        onUpdated={() => {
+          setShowEditEthosModal(false)
+          fetchEthos()
+        }}
+      />
     </div>
   )
 }
