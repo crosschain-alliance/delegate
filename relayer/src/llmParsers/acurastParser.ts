@@ -115,12 +115,12 @@ export async function parseQuery(promptId: string, input: string): Promise<strin
       await execAsync(`acurast deployments ${deploymentId} --cleanup`);
     }
 
-    const encodedResponse = encodeAbiParameters(
-      parseAbiParameters('string'),
-      [cleanedResponse || '']
-    );
+    // const encodedResponse = encodeAbiParameters(
+    //   parseAbiParameters('string'),
+    //   [cleanedResponse || '']
+    // );
 
-    return encodedResponse;
+    return cleanedResponse || '';
   } catch (error: any) {
     console.error('Error:', error);
     const errorResponse = encodeAbiParameters(

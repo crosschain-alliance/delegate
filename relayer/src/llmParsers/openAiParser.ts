@@ -20,12 +20,12 @@ export async function parseQuery(input: string): Promise<string> {
 
     console.log('Response:', response.choices[0].message.content);
 
-    const encodedResponse = encodeAbiParameters(
-      parseAbiParameters('string'),
-      [response.choices[0].message.content || '']
-    );
+    // const encodedResponse = encodeAbiParameters(
+    //   parseAbiParameters('string'),
+    //   [response.choices[0].message.content || '']
+    // );
 
-    return encodedResponse;
+    return response.choices[0].message.content || '';
   } catch (error: any) {
     console.error('Error:', error);
     return '';
