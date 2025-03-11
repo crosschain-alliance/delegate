@@ -1,22 +1,43 @@
 import { createPublicClient, createWalletClient, http } from 'viem';
-import { foundry, sepolia, mainnet, arbitrum } from 'viem/chains';
+import { foundry, sepolia, mainnet, arbitrum, Chain } from 'viem/chains';
 import LLMAdapterABI from '../artifacts/LLMAdapter.json';
-import { parseQuery } from './llmParsers/acurastParser';
+// import { parseQuery } from './llmParsers/acurastParser';
+import { parseQuery } from './llmParsers/openAiParser';
 import { privateKeyToAccount } from 'viem/accounts';
 import 'dotenv/config';
 
-if (!process.env.CONTRACT_ADDRESS || !process.env.PRIVATE_KEY || !process.env.RPC_URL || !process.env.CHAIN) {
+if (!process.env.CONTRACT_ADDRESS || !process.env.PRIVATE_KEY || !process.env.RPC_URL || !process.env.REL_CHAIN) {
   throw new Error('Missing environment variables. Check .env file');
 }
+
+const monad: Chain = {
+  id: 10143,
+  name: 'Monad',
+  nativeCurrency: {
+    name: 'Monad',
+    symbol: 'MON',
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://testnet-rpc.monad.xyz'],
+    },
+  },
+  blockExplorers: {
+    default: { name: 'Monad Explorer', url: 'https://testnet.monadexplorer.com/' },
+  },
+  testnet: true,
+};
 
 const chains = {
   sepolia,
   mainnet,
   arbitrum,
-  foundry
+  monad,
+  foundry,
 };
 
-const chain = chains[process.env.CHAIN as keyof typeof chains];
+const chain = chains[process.env.REL_CHAIN as keyof typeof chains];
 if (!chain) {
   throw new Error(`Invalid chain: ${process.env.CHAIN}`);
 }
@@ -39,12 +60,15 @@ const walletClient = createWalletClient({
 const abi = LLMAdapterABI.abi;
 
 export const respond = async (promptId: any, response: string) => {
-  await walletClient.writeContract({
+  const { request } = await publicClient.simulateContract({
     address: contractAddress,
     abi,
     functionName: 'respond',
     args: [promptId, response, '0x'],
-  });
+  })
+
+  const tx = await walletClient.writeContract(request)
+  console.log(tx)
 };
 
 const handleAskedEvent = async (log: any) => {
