@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { deployContract, waitForTransactionReceipt } from "viem/actions"
 import { useAccount, useWalletClient } from "wagmi"
 import { createPublicClient, http, zeroAddress } from "viem"
@@ -20,30 +20,37 @@ import VotesModal from "./components/complex/VotesModal"
 
 const sliceAddress = (address) => `${address.slice(0, 6)}...${address.slice(address.length - 4, address.length)}`
 
+const client = createPublicClient({
+  transport: http("https://monad-testnet.g.alchemy.com/v2/75LszqDvCMiLQrNFyqricZtsZH0pFSc1"),
+})
+
 export default () => {
+  const loaded = useRef(false)
   const [showEditEthosModal, setShowEditEthosModal] = useState(false)
   const [showVotesModal, setShowVotesModal] = useState(false)
   const [ethos, setEthos] = useState()
-  const [subscriptionEvents, setSubscriptionEvents] = useState([])
+  const [subcriptions, setSubscriptions] = useState([])
   const [numberOfVotes, setNumberOfVotes] = useState([])
   const [votes, setVotes] = useState([])
   const [kmsAdapter, setKmsAdapter] = useState()
   const { data: walletClient } = useWalletClient({ config })
-  const account = {address: "0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8"} // useAccount()
+  const account = useAccount()
 
   useEffect(() => {
-    if (account.address) fetchUserData()
+    if (account.address && !loaded.current) {
+      fetchUserData()
+      loaded.current = true
+    }
   }, [account])
 
   useEffect(() => {
-    if (subscriptionEvents) getSubscriptionVotes()
-  }, [subscriptionEvents])
+    if (subcriptions.length) {
+      fetchSubscriptionsVotes()
+    }
+  }, [subcriptions])
 
   const fetchEthos = useCallback(async () => {
     try {
-      const client = createPublicClient({
-        transport: http("https://monad-testnet.g.alchemy.com/v2/c_lEuDySbbwy5iWTXupQNZbWbo--pJ45"),
-      })
       const ethos = await client.readContract({
         abi: deleGateAbi,
         address: settings.contractAddresses[monadTestnet.id].deleGate,
@@ -59,13 +66,33 @@ export default () => {
     } catch (err) {
       console.error(err)
     }
-  }, [])
+  }, [account])
+
+  const fetchSubscriptions = useCallback(async () => {
+    try {
+      const subscriptions = await client.readContract({
+        abi: deleGateAbi,
+        address: settings.contractAddresses[monadTestnet.id].deleGate,
+        functionName: "getUserSubscriptions",
+        args: [account.address],
+      })
+
+      setSubscriptions(
+        subscriptions.map((subscription) => {
+          const dao = settings.daos.find(({ address }) => address.toLowerCase() === subscription.dao.toLowerCase())
+          return {
+            daoData: dao,
+            ...subscription,
+          }
+        }),
+      )
+    } catch (err) {
+      console.error(err)
+    }
+  }, [account])
 
   const fetchUserData = useCallback(async () => {
     try {
-      const client = createPublicClient({
-        transport: http("https://monad-testnet.g.alchemy.com/v2/c_lEuDySbbwy5iWTXupQNZbWbo--pJ45"),
-      })
       const [kmsAdapter] = await Promise.all([
         client.readContract({
           abi: deleGateAbi,
@@ -73,36 +100,11 @@ export default () => {
           functionName: "getUserKmsAdapter",
           args: [account.address],
         }),
+        fetchSubscriptions(),
         fetchEthos(),
       ])
 
       setKmsAdapter(kmsAdapter)
-
-      const subscriptionEvents = await fetchEvents(
-        client,
-        settings.deployBlockNumbers[monadTestnet.id].deleGate,
-        ({ fromBlock, toBlock }) =>
-          client.getContractEvents({
-            abi: deleGateAbi,
-            address: settings.contractAddresses[monadTestnet.id].deleGate,
-            args: {
-              voter: [account.address],
-            },
-            eventName: "Subscribed",
-            fromBlock,
-            strict: true,
-            toBlock,
-          }),
-      )
-      setSubscriptionEvents(
-        subscriptionEvents.map(({ args }) => {
-          const dao = settings.daos.find(({ address }) => address.toLowerCase() === args.dao.toLowerCase())
-          return {
-            dao,
-            eventArgs: args,
-          }
-        }),
-      )
     } catch (err) {
       console.error(err)
     }
@@ -173,6 +175,10 @@ export default () => {
             args: [targetChainId, daoAddress, keyringDeleGateModule],
             chain: monadTestnet,
           })
+          await waitForTransactionReceipt(walletClient, {
+            hash: txHash,
+          })
+          fetchSubscriptions()
           console.log("transaction hash:", txHash)
         }
       } catch (err) {
@@ -182,32 +188,37 @@ export default () => {
     [walletClient],
   )
 
-  const getSubscriptionVotes = useCallback(async () => {
-    const client = createPublicClient({
-      transport: http("https://arb-mainnet.g.alchemy.com/v2/c_lEuDySbbwy5iWTXupQNZbWbo--pJ45"),
-    })
-    const numberofVotes = subscriptionEvents.map(async (subscription) => {
-      const voteEvents = await fetchEvents(
-        client,
-        client.getBlockNumber() - 15000n,
-        ({ fromBlock, toBlock }) =>
-          client.getContractEvents({
-            abi: governorAbi,
-            address: subscription.dao.address,
-            args: {
-              voter: [account.address],
-            },
-            eventName: "VoteCast",
-            fromBlock,
-            strict: true,
-            toBlock,
-          }),
-      )
-      setVotes(voteEvents)
-      return voteEvents.length
-    })
+  const fetchSubscriptionsVotes = useCallback(async () => {
+    try {
+      // TODO: make client dynamic
+      /*const client = createPublicClient({
+        transport: http("https://arb-mainnet.g.alchemy.com/v2/c_lEuDySbbwy5iWTXupQNZbWbo--pJ45"),
+      })
+      const numberofVotes = subcriptions.map(async (subscription) => {
+        const voteEvents = await fetchEvents(
+          client,
+          (await client.getBlockNumber()) - 1500000n,
+          ({ fromBlock, toBlock }) =>
+            client.getContractEvents({
+              abi: governorAbi,
+              address: subscription.dao.address,
+              args: {
+                voter: [account.address],
+              },
+              eventName: "VoteCast",
+              fromBlock,
+              strict: true,
+              toBlock,
+            }),
+        )
+        setVotes(voteEvents)
+        return voteEvents.length
+      })*/
 
-    setNumberOfVotes(numberofVotes)
+      setNumberOfVotes(1)
+    } catch (err) {
+      console.error(err)
+    }
   })
 
   return (
@@ -329,21 +340,21 @@ export default () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {subscriptionEvents.map((subscription, index) => {
+                  {subcriptions.map((subscription, index) => {
                     const delegatedAddressUrl =
-                      settings.chains[subscription.eventArgs.targetChainId].blockExplorers.default.url +
+                      settings.chains[subscription.targetChainId].blockExplorers.default.url +
                       "/address/" +
-                      subscription.eventArgs.module
+                      subscription.module
                     return (
                       <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="py-2">
                           <a
                             className="underline text-blue-600 hover:text-blue-800 transition-colors"
-                            href={subscription.dao.link}
+                            href={subscription.daoData.link}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            {subscription.dao.name}
+                            {subscription.daoData.name}
                           </a>
                         </td>
                         <td className="py-2">
@@ -353,7 +364,7 @@ export default () => {
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            {sliceAddress(subscription.eventArgs.module)}
+                            {sliceAddress(subscription.module)}
                           </a>
                         </td>
                         <td className="py-2">
@@ -389,11 +400,7 @@ export default () => {
         }}
       />
 
-      <VotesModal
-        isOpen={showVotesModal}
-        votes={votes}
-        onClose={() => setShowVotesModal(false)}
-      />
+      <VotesModal isOpen={showVotesModal} votes={votes} onClose={() => setShowVotesModal(false)} />
     </div>
   )
 }

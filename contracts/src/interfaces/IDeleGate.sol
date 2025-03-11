@@ -15,10 +15,11 @@ interface IDeleGate {
         bytes data;
     }
 
-    /*struct Subscription {
+    struct Subscription {
         uint256 targetChainId;
         address dao;
-    }*/
+        address module;
+    }
 
     event EndVoteCast(address indexed voter, bytes32 promptId);
     event EthosDefined(address indexed user, Ethos ethos);

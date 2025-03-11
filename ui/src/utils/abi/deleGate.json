@@ -262,6 +262,42 @@
   },
   {
     "type": "function",
+    "name": "getUserSubscriptions",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct IDeleGate.Subscription[]",
+        "components": [
+          {
+            "name": "targetChainId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "dao",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "module",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "grantRole",
     "inputs": [
       {

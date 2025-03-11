@@ -15,8 +15,8 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
     mapping(address => Ethos) private _usersEthos;
     mapping(bytes32 => PendingPromptData) private _pendingPromptData;
     mapping(address => address) private _usersKmsAdapter;
-    // mapping(address => Subscription[]) private _userSubscribtions;
-    mapping(bytes32 => bool) private _userSubscribtions;
+    mapping(address => Subscription[]) private _userSubscribtions;
+    mapping(bytes32 => bool) private _enabledSubscriptions;
     address public llmAdapter;
 
     function initialize(address owner) public initializer {
@@ -69,12 +69,16 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         emit EthosDefined(msg.sender, ethos);
     }
 
+    function getUserKmsAdapter(address user) external view returns (address) {
+        return _usersKmsAdapter[user];
+    }
+
     function getUserEthos(address user) external view returns (Ethos memory) {
         return _usersEthos[user];
     }
 
-    function getUserKmsAdapter(address user) external view returns (address) {
-        return _usersKmsAdapter[user];
+    function getUserSubscriptions(address user) external view returns (Subscription[] memory) {
+        return _userSubscribtions[user];
     }
 
     function onAnswer(bytes32 promptId, string calldata answer) external onlyRole(ON_ASWER_ROLE) {
@@ -109,10 +113,10 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
 
     function subscribe(uint256 targetChainId, address dao, address module) external {
         address voter = msg.sender;
-        /*Subscription[] storage subscriptions = _userSubscribtions[voter];
-        subscriptions.push(Subscription({targetChainId: targetChainId, dao: dao}));*/
+        Subscription[] storage subscriptions = _userSubscribtions[voter];
+        subscriptions.push(Subscription({targetChainId: targetChainId, dao: dao, module: module}));
         bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, module, voter));
-        _userSubscribtions[subscriptionId] = true;
+        _enabledSubscriptions[subscriptionId] = true;
         emit Subscribed(targetChainId, dao, voter, module);
     }
 
@@ -122,7 +126,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
 
     function _checkSubscription(uint256 targetChainId, address dao, address voter, address module) internal view {
         bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, voter, module));
-        require(_userSubscribtions[subscriptionId] == true, SubscriptionNotFound());
+        require(_enabledSubscriptions[subscriptionId] == true, SubscriptionNotFound());
     }
 
     function _validateEthos(Ethos memory ethos) internal pure {
