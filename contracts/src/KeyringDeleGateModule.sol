@@ -1,20 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlEnumerableUpgradeable} from
-    "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
+import {AccessControlEnumerable} from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {IKeyringTarget} from "./interfaces/keyring/IKeyringTarget.sol";
 import {Operation} from "./interfaces/keyring/Operation.sol";
 import {IKeyringDeleGateModule} from "./interfaces/IKeyringDeleGateModule.sol";
 
-contract KeyringDeleGateModule is
-    IKeyringDeleGateModule,
-    IKeyringTarget,
-    UUPSUpgradeable,
-    AccessControlEnumerableUpgradeable
-{
+contract KeyringDeleGateModule is IKeyringDeleGateModule, IKeyringTarget, AccessControlEnumerable {
     bytes32 public constant UPDATE_GATEWAY_ROLE = keccak256("UPDATE_GATEWAY_ROLE");
     bytes32 public constant ON_OPERATION_ROLE = keccak256("ON_OPERATION_ROLE");
     bytes32 public constant UPDATE_KMS_ADAPTER_ROLE = keccak256("UPDATE_KMS_ADAPTER_ROLE");
@@ -25,16 +18,13 @@ contract KeyringDeleGateModule is
     address public kmsAdapter;
     uint256 public expectedSourceChainId;
 
-    function initialize(
+    constructor(
         address owner,
         address gateway_,
         address expectedSigner_,
         address kmsAdapter_,
         uint256 expectedSourceChainId_
-    ) public initializer {
-        __AccessControlEnumerable_init();
-        __UUPSUpgradeable_init();
-
+    ) {
         gateway = gateway_;
         expectedSigner = expectedSigner_;
         kmsAdapter = kmsAdapter_;
@@ -44,7 +34,7 @@ contract KeyringDeleGateModule is
         _grantRole(UPDATE_GATEWAY_ROLE, owner);
         _grantRole(UPDATE_KMS_ADAPTER_ROLE, owner);
         _grantRole(UPDATE_EXPECTED_SIGNER, owner);
-        _grantRole(ON_OPERATION_ROLE, gateway_);
+        _grantRole(ON_OPERATION_ROLE, gateway);
     }
 
     function onOperation(address signer, Operation memory operation) external onlyRole(ON_OPERATION_ROLE) {
@@ -72,6 +62,4 @@ contract KeyringDeleGateModule is
         gateway = newGateway;
         emit GatewayUpdated(newGateway);
     }
-
-    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }

@@ -120,10 +120,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         require(_usersKmsAdapter[user] != address(0), KmsAdapterNotSet());
     }
 
-    function _checkSubscription(uint256 targetChainId, address dao, address voter, address module)
-        internal
-        view
-    {
+    function _checkSubscription(uint256 targetChainId, address dao, address voter, address module) internal view {
         bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, voter, module));
         require(_userSubscribtions[subscriptionId] == true, SubscriptionNotFound());
     }
