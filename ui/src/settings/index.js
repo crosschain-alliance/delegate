@@ -6,7 +6,7 @@ export default {
             name: "Arbitrum",
             address: "0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9",
             chainId: chains.arbitrum.id,
-            link: "https://www.tally.xyz/gov/arbtrum"
+            link: "https://www.tally.xyz/gov/arbitrum"
         },
         {
             name: "Compound",
@@ -19,7 +19,13 @@ export default {
             address: "0x76705327e682F2d96943280D99464Ab61219e34f",
             chainId: chains.zksync.id,
             link: "https://www.tally.xyz/gov/zksync"
-        }
+        },
+        {
+            name: "GMX",
+            address: "0x4bd1cdAab4254fC43ef6424653cA2375b4C94C0E",
+            chainId: chains.arbitrum.id,
+            link: 'https://www.tally.xyz/gov/gmx'
+        },
     ],
     contractAddresses: {
         [chains.monadTestnet.id]: {
