@@ -24,8 +24,14 @@ export default {
             name: "GMX",
             address: "0x4bd1cdAab4254fC43ef6424653cA2375b4C94C0E",
             chainId: chains.arbitrum.id,
-            link: 'https://www.tally.xyz/gov/gmx'
+            link: "https://www.tally.xyz/gov/gmx"
         },
+        {   
+            name: "OnChainAustria",
+            address: "0xc93DE629BF8f4Aa7051589F37d2AffdfCCe940cA",
+            chainId: chains.arbitrum.id,
+            link: "https://www.tally.xyz/gov/onchainaustria-dao"
+        }
     ],
     contractAddresses: {
         [chains.monadTestnet.id]: {
