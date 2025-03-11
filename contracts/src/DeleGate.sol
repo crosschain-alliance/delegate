@@ -32,13 +32,13 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         address governor,
         uint256 proposalId,
         string calldata vote,
-        bytes calldata target,
+        address module,
         bytes calldata voteProof
     ) external {
         // TODO: verify zkTLS proof (voteProof)
         Ethos memory ethos = _usersEthos[voter];
         _checkKmsAdapterExistence(voter);
-        _checkSubscription(targetChainId, governor, voter);
+        _checkSubscription(targetChainId, governor, voter, module);
 
         string memory prompt = string(
             abi.encodePacked(
@@ -56,7 +56,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         bytes32 promptId = ILLMAdapter(llmAdapter).ask(prompt);
         _pendingPromptData[promptId] = PendingPromptData({
             targetChainId: targetChainId,
-            target: target,
+            target: abi.encodePacked(module),
             voter: voter,
             data: abi.encode(governor, proposalId)
         });
@@ -107,21 +107,24 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         emit KMSAdapterSet(msg.sender, kmsAdapter);
     }
 
-    function subscribe(uint256 targetChainId, address dao) external {
+    function subscribe(uint256 targetChainId, address dao, address module) external {
         address voter = msg.sender;
         /*Subscription[] storage subscriptions = _userSubscribtions[voter];
         subscriptions.push(Subscription({targetChainId: targetChainId, dao: dao}));*/
-        bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, voter));
+        bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, module, voter));
         _userSubscribtions[subscriptionId] = true;
-        emit Subscribed(targetChainId, dao, voter);
+        emit Subscribed(targetChainId, dao, voter, module);
     }
 
     function _checkKmsAdapterExistence(address user) internal view {
         require(_usersKmsAdapter[user] != address(0), KmsAdapterNotSet());
     }
 
-    function _checkSubscription(uint256 targetChainId, address dao, address voter) internal view {
-        bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, voter));
+    function _checkSubscription(uint256 targetChainId, address dao, address voter, address module)
+        internal
+        view
+    {
+        bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, voter, module));
         require(_userSubscribtions[subscriptionId] == true, SubscriptionNotFound());
     }
 

@@ -25,7 +25,7 @@ interface IDeleGate {
     event LLMAdapterSet(address llmAdapter);
     event KMSAdapterSet(address indexed user, address kmsAdapter);
     event StartVoteCast(address indexed voter, bytes32 promptId);
-    event Subscribed(uint256 indexed targetChainId, address indexed dao, address indexed voter);
+    event Subscribed(uint256 indexed targetChainId, address indexed dao, address indexed voter, address module);
 
     error KmsAdapterNotSet();
     error InvalidEthos();
@@ -38,7 +38,7 @@ interface IDeleGate {
         address governor,
         uint256 proposalId,
         string calldata vote,
-        bytes calldata target,
+        address keyringDeleGateModule,
         bytes calldata voteProof
     ) external;
 
@@ -54,5 +54,5 @@ interface IDeleGate {
 
     function setKmsAdapter(address kmsAdapter) external;
 
-    function subscribe(uint256 targetChainId, address dao) external;
+    function subscribe(uint256 targetChainId, address dao, address module) external;
 }
