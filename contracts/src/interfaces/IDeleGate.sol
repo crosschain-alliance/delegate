@@ -15,15 +15,22 @@ interface IDeleGate {
         bytes data;
     }
 
+    /*struct Subscription {
+        uint256 targetChainId;
+        address dao;
+    }*/
+
     event EndVoteCast(address indexed voter, bytes32 promptId);
     event EthosDefined(address indexed user, Ethos ethos);
     event LLMAdapterSet(address llmAdapter);
     event KMSAdapterSet(address indexed user, address kmsAdapter);
     event StartVoteCast(address indexed voter, bytes32 promptId);
+    event Subscribed(uint256 indexed targetChainId, address indexed dao, address indexed voter);
 
+    error KmsAdapterNotSet();
     error InvalidEthos();
-    error InvalidKmsAdapter();
     error InvalidPromptData();
+    error SubscriptionNotFound();
 
     function castGovernorVoteFor(
         address voter,
@@ -43,7 +50,9 @@ interface IDeleGate {
 
     function onAnswer(bytes32 promptId, string calldata answer) external;
 
-    function setLlmAdapter(address llmAdapter) external;
+    function setLlmAdapter(address newLlmAdapter) external;
 
     function setKmsAdapter(address kmsAdapter) external;
+
+    function subscribe(uint256 targetChainId, address dao) external;
 }

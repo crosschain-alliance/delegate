@@ -15,6 +15,8 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
     mapping(address => Ethos) private _usersEthos;
     mapping(bytes32 => PendingPromptData) private _pendingPromptData;
     mapping(address => address) private _usersKmsAdapter;
+    // mapping(address => Subscription[]) private _userSubscribtions;
+    mapping(bytes32 => bool) private _userSubscribtions;
     address public llmAdapter;
 
     function initialize(address owner) public initializer {
@@ -36,6 +38,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         // TODO: verify zkTLS proof (voteProof)
         Ethos memory ethos = _usersEthos[voter];
         _checkKmsAdapterExistence(voter);
+        _checkSubscription(targetChainId, governor, voter);
 
         string memory prompt = string(
             abi.encodePacked(
@@ -104,8 +107,22 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         emit KMSAdapterSet(msg.sender, kmsAdapter);
     }
 
+    function subscribe(uint256 targetChainId, address dao) external {
+        address voter = msg.sender;
+        /*Subscription[] storage subscriptions = _userSubscribtions[voter];
+        subscriptions.push(Subscription({targetChainId: targetChainId, dao: dao}));*/
+        bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, voter));
+        _userSubscribtions[subscriptionId] = true;
+        emit Subscribed(targetChainId, dao, voter);
+    }
+
     function _checkKmsAdapterExistence(address user) internal view {
-        require(_usersKmsAdapter[user] != address(0), InvalidKmsAdapter());
+        require(_usersKmsAdapter[user] != address(0), KmsAdapterNotSet());
+    }
+
+    function _checkSubscription(uint256 targetChainId, address dao, address voter) internal view {
+        bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, voter));
+        require(_userSubscribtions[subscriptionId] == true, SubscriptionNotFound());
     }
 
     function _validateEthos(Ethos memory ethos) internal pure {

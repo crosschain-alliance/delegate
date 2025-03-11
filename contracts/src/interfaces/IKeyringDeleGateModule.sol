@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 interface IKeyringDeleGateModule {
-    event DeleGateUpdated(address deleGate);
+    event KmsAdapterUpdated(address deleGate);
     event ExpectedSignerUpdated(address expectedSigner);
     event GatewayUpdated(address gateway);
 
@@ -14,5 +14,5 @@ interface IKeyringDeleGateModule {
 
     function updateExpectedSigner(address newExpectedSigner) external;
 
-    function updateDeleGate(address newDeleGate) external;
+    function updateKmsAdapter(address newDeleGate) external;
 }

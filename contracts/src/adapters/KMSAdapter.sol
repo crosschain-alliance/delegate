@@ -6,12 +6,19 @@ import {IKeyringGateway} from "../interfaces/IKeyringGateway.sol";
 
 contract KMSAdapter is IKMSAdapter {
     address public immutable KEYRING_GATEWAY;
+    address public immutable DELEGATE;
 
-    constructor(address keyringGateway) {
-        KEYRING_GATEWAY = keyringGateway;
+    modifier onlyDeleGate() {
+        require(msg.sender == DELEGATE, NotDeleGate());
+        _;
     }
 
-    function sign(uint256 targetChainId, bytes calldata target, bytes calldata data) external {
+    constructor(address keyringGateway, address delegate) {
+        KEYRING_GATEWAY = keyringGateway;
+        DELEGATE = delegate;
+    }
+
+    function sign(uint256 targetChainId, bytes calldata target, bytes calldata data) external onlyDeleGate {
         IKeyringGateway(KEYRING_GATEWAY).sign(uint64(targetChainId), target, data);
     }
 }

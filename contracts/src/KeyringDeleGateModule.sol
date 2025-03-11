@@ -17,19 +17,19 @@ contract KeyringDeleGateModule is
 {
     bytes32 public constant UPDATE_GATEWAY_ROLE = keccak256("UPDATE_GATEWAY_ROLE");
     bytes32 public constant ON_OPERATION_ROLE = keccak256("ON_OPERATION_ROLE");
-    bytes32 public constant UPDATE_DELEGATE_ROLE = keccak256("UPDATE_DELEGATE_ROLE");
+    bytes32 public constant UPDATE_KMS_ADAPTER_ROLE = keccak256("UPDATE_KMS_ADAPTER_ROLE");
     bytes32 public constant UPDATE_EXPECTED_SIGNER = keccak256("UPDATE_EXPECTED_SIGNER");
 
     address public gateway;
     address public expectedSigner;
-    address public deleGate;
+    address public kmsAdapter;
     uint256 public expectedSourceChainId;
 
     function initialize(
         address owner,
         address gateway_,
         address expectedSigner_,
-        address deleGate_,
+        address kmsAdapter_,
         uint256 expectedSourceChainId_
     ) public initializer {
         __AccessControlEnumerable_init();
@@ -37,28 +37,28 @@ contract KeyringDeleGateModule is
 
         gateway = gateway_;
         expectedSigner = expectedSigner_;
-        deleGate = deleGate_;
+        kmsAdapter = kmsAdapter_;
         expectedSourceChainId = expectedSourceChainId_;
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
         _grantRole(UPDATE_GATEWAY_ROLE, owner);
-        _grantRole(UPDATE_DELEGATE_ROLE, owner);
+        _grantRole(UPDATE_KMS_ADAPTER_ROLE, owner);
         _grantRole(UPDATE_EXPECTED_SIGNER, owner);
         _grantRole(ON_OPERATION_ROLE, gateway_);
     }
 
     function onOperation(address signer, Operation memory operation) external onlyRole(ON_OPERATION_ROLE) {
         require(signer == expectedSigner, InvalidSigner());
-        require(address(bytes20(operation.sender)) == deleGate, NotDeleGate());
+        require(address(bytes20(operation.sender)) == kmsAdapter, NotDeleGate());
         require(operation.sourceChainId == expectedSourceChainId, InvalidSourceChainId());
 
         (address governor, uint256 proposalId, uint8 support) = abi.decode(operation.data, (address, uint256, uint8));
         IGovernor(governor).castVote(proposalId, support);
     }
 
-    function updateDeleGate(address newDeleGate) external onlyRole(UPDATE_DELEGATE_ROLE) {
-        deleGate = newDeleGate;
-        emit DeleGateUpdated(newDeleGate);
+    function updateKmsAdapter(address newKmsAdapter) external onlyRole(UPDATE_KMS_ADAPTER_ROLE) {
+        kmsAdapter = newKmsAdapter;
+        emit KmsAdapterUpdated(newKmsAdapter);
     }
 
     function updateExpectedSigner(address newExpectedSigner) external onlyRole(UPDATE_EXPECTED_SIGNER) {
