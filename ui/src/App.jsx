@@ -30,7 +30,7 @@ export default () => {
   const [showEditEthosModal, setShowEditEthosModal] = useState(false)
   const [showVotesModal, setShowVotesModal] = useState(false)
   const [ethos, setEthos] = useState()
-  const [subcriptions, setSubscriptions] = useState([])
+  const [subscriptions, setSubscriptions] = useState([])
   const [numberOfVotes, setNumberOfVotes] = useState([])
   const [votes, setVotes] = useState([])
   const [kmsAdapter, setKmsAdapter] = useState('Keyring')
@@ -56,10 +56,10 @@ export default () => {
   }, [account])
 
   useEffect(() => {
-    if (subcriptions.length) {
+    if (subscriptions.length) {
       fetchSubscriptionsVotes()
     }
-  }, [subcriptions])
+  }, [subscriptions])
 
   const fetchEthos = useCallback(async () => {
     try {
@@ -117,33 +117,6 @@ export default () => {
       ])
 
       // setKmsAdapter('Keyring') // todo use the contract data
-
-      const subscriptionEvents = await fetchEvents(
-        monadClient,
-        settings.deployBlockNumbers[monadTestnet.id].deleGate,
-        2,
-        ({ fromBlock, toBlock }) =>
-          monadClient.getContractEvents({
-            abi: deleGateAbi,
-            address: settings.contractAddresses[monadTestnet.id].deleGate,
-            args: {
-              voter: [account.address],
-            },
-            eventName: "Subscribed",
-            fromBlock,
-            strict: true,
-            toBlock,
-          }),
-      )
-      setSubscriptionEvents(
-        subscriptionEvents.map(({ args }) => {
-          const dao = settings.daos.find(({ address }) => address.toLowerCase() === args.dao.toLowerCase())
-          return {
-            dao,
-            eventArgs: args,
-          }
-        }),
-      )
     } catch (err) {
       console.error(err)
     }
@@ -227,8 +200,9 @@ export default () => {
     [walletClient],
   )
 
-  const getSubscriptionVotes = useCallback(async () => {
-    const numberofVotes = subscriptionEvents.map(async (subscription) => {
+  const fetchSubscriptionsVotes = useCallback(async () => {
+    try {
+      const numberofVotes = subscriptions.map(async (subscription) => {
       const voteEvents = await fetchEvents(
         arbitrumClient,
         settings.deployBlockNumbers[monadTestnet.id].deleGate,
@@ -434,7 +408,7 @@ export default () => {
                       </td>
                       <td className="py-2 text-right">
                         {
-                          subscriptionEvents.some(
+                          subscriptions.some(
                             (sub) => sub.dao.address.toLowerCase() === dao.address.toLowerCase()
                           ) ? (
                             <span className="px-3 py-1 text-gray-500 font-medium">
@@ -470,7 +444,7 @@ export default () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {subcriptions.map((subscription, index) => {
+                  {subscriptions.map((subscription, index) => {
                     const delegatedAddressUrl =
                       settings.chains[subscription.targetChainId].blockExplorers.default.url +
                       "/address/" +
@@ -580,7 +554,11 @@ export default () => {
         }}
       />
 
-      <VotesModal isOpen={showVotesModal} votes={votes} onClose={() => setShowVotesModal(false)} />
+      <VotesModal
+        isOpen={showVotesModal}
+        votes={votes}
+        onClose={() => setShowVotesModal(false)}
+      />
     </div>
   )
 }
