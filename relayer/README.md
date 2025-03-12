@@ -2,6 +2,24 @@
 
 A service that listens for `Asked` events from the LLM Adapter smart contract and responds with LLM-generated answers.
 
+It is possible to use different types of LLM services:
+- OpenAI for speed.
+- Acurast for security.
+
+Each service can be configured and has been tested with different LLMs:
+
+###### OpenAI
+- gpt-4o-mini
+- gpt-4o
+- gpt-4.5-preview
+
+###### Acurast
+- [Qwen2.5-14B-Instruct-Q4_0_4_4](https://huggingface.co/bartowski/Qwen2.5-14B-Instruct-GGUF/blob/main/Qwen2.5-14B-Instruct-Q4_0_4_4.gguf)
+- [Meta-Llama-3.1-8B-Instruct-Q4_0_4_4](https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/blob/main/Meta-Llama-3.1-8B-Instruct-Q4_0_4_4.gguf)
+- [Qwen2.5.1-Coder-7B-Instruct-Q4_0_4_4](https://huggingface.co/bartowski/Qwen2.5.1-Coder-7B-Instruct-GGUF/blob/main/Qwen2.5.1-Coder-7B-Instruct-Q4_0_4_4.gguf)
+- [Llama-3.2-3B-Instruct-Q4_0_4_4](https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/blob/main/Llama-3.2-3B-Instruct-Q4_0_4_4.gguf)
+- [Qwen2.5-0.5B-Instruct-Q4_K_M](https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/blob/main/Qwen2.5-0.5B-Instruct-Q4_0_4_4.gguf)
+
 ## Prerequisites
 
 - Node.js v18+
@@ -39,12 +57,7 @@ docker compose logs -f relayer
 
 ## Environment Variables
 
-```env
-CONTRACT_ADDRESS=0x...  # LLM Adapter contract address
-PRIVATE_KEY=0x...      # Private key for transaction signing
-RPC_URL=https://...    # Ethereum RPC endpoint
-CHAIN=sepolia          # Network (sepolia, mainnet, arbitrum, foundry)
-```
+Check `.env.example`
 
 ## Development
 

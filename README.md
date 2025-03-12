@@ -1,99 +1,88 @@
 # DeleGate
 
-## Projects
+DeleGate is a next-generation AI-powered voting delegate designed for DAOs and cooperatives. It utilizes a hexagonal architecture to ensure modularity and extensibility, with a core logic implemented as a **Monad smart contract**. The system integrates multiple adapters, including an LLM adapter (e.g., OpenAI or Acurast-Llama) and a KMS adapter (e.g., Keyring), enabling efficient and secure execution.
 
-- `contracts`: Solidity smart contract for handling LLM queries and responses
-- `relayer`: TypeScript service for relaying queries to LLM providers
+## Key Features
 
-## Prerequisites
+- **Automated DAO Voting:** Users set predefined principles and preferences, and DeleGate ensures their votes align accordingly.
+- **AI-Powered Proposal Analysis:** Leverages LLMs to analyze DAO proposals and make informed voting decisions.
+- **Secure Signing & Submission:** Uses a KMS adapter to securely sign and submit votes across multiple chains (e.g., Snapshot, Tally).
+- **Override Mechanism:** Users have the ability to manually override the automated vote before the deadline.
+- **High Throughput & Cost Efficiency:** Built on **Monad**, enabling predominantly on-chain AI operations with minimal overhead.
 
-- Node.js v18+
-- npm v11+
-- Foundry
+## Architecture
 
-## Installation
+DeleGate follows a **hexagonal architecture** with three main components:
 
-1. Install Foundry (if not already installed):
+1. **Core (Monad Smart Contract)**  
+   - Implements the core agent logic and decision-making mechanisms.
 
-```bash
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
+2. **Ports/Adapters**  
+   - **LLM Adapter:** Integrates with OpenAI, Acurast-Llama, or other AI models for text understanding.
+   - **KMS Adapter:** Uses Keyring or another key management system for secure signing.
+   - Additional adapters can be added as needed for enhanced functionality.
+
+3. **Relayer**  
+   - Facilitates interaction between off-chain components (LLMs, KMS) and the on-chain smart contract.
+
+## Monorepo Structure
+
+The project follows a monorepo architecture, composed of the following components:
+
+- **`ui/`** - A frontend interface allowing users to configure preferences and monitor votes.
+- **`contracts/`** - The smart contract implementation running on Monad.
+- **`relayer/`** - A backend service that interacts with the LLM and handles off-chain computations.
+- **`acurast_llm/`** - An Acurast component to run LLMs in a secure and fully decentralized fashion.
+
+## Why DeleGate?
+
+Participating in DAO governance is often time-consuming, yet many users vote in predictable ways based on proposal content. DeleGate automates this process, ensuring:
+
+- **Always-on participation:** Users never miss an important vote.
+- **Trustworthy execution:** The agent votes in alignment with user-defined values.
+- **Seamless integration:** Works across multiple DAOs and chains.
+
+By leveraging **LLMs for analysis, KMS for security, and Monad for efficient execution**, DeleGate is a pioneering step towards **on-chain AI-driven governance**.
+
+## Getting Started
+
+### Prerequisites
+- Node.js (for UI & Relayer)
+- Rust & Cargo (for smart contracts)
+- Docker (optional, for deployment)
+
+### Installation
+Clone the repository and install dependencies:
+```sh
+ git clone https://github.com/your-org/delegate.git
+ cd delegate
 ```
 
-2. Install project dependencies:
-
-```bash
+#### UI
+```sh
+cd ui
 npm install
+npm start
 ```
 
-## Development
+#### Relayer
+```sh
+cd relayer
+npm install
+npm run start
+```
+###### Acurast_llm
+Orchestrated directly by the relayer when configured.
 
-### Build
-
-Build all projects:
-
-```bash
-npm run build
+#### Contracts
+```sh
+cd contracts
+forge build
+forge test
 ```
 
-### Test
-
-Run all tests:
-
-```bash
-npm run test
-```
-
-### Local Development
-
-1. Start local blockchain:
-
-```bash
-npm run dev:anvil
-```
-
-2. In a separate terminal, deploy contracts:
-
-```bash
-npm run dev:deploy
-```
-
-### Code Quality
-
-Format code:
-
-```bash
-npm run format
-```
-
-Lint code:
-
-```bash
-npm run lint
-```
-
-## Project Structure
-
-```
-.
-├── llmAdapter/           # Solidity smart contracts
-│   ├── src/             # Contract source files
-│   ├── test/            # Contract tests
-│   └── script/          # Deployment scripts
-│
-└── delegateRelayer/     # TypeScript relayer service
-    ├── src/             # Service source files
-    └── script/          # Test scripts
-```
-
-## Environment Variables
-
-Create a `.env` file in the root directory:
-
-```bash
-OPENAI_API_KEY=your_api_key_here
-```
+## Contributing
+We welcome contributions! Feel free to open issues or submit pull requests to improve DeleGate.
 
 ## License
-
-MIT
+This project is licensed under the MIT License.
