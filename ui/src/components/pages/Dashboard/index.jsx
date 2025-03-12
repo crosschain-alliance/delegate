@@ -480,7 +480,9 @@ const Dashboard = () => {
                             {sliceAddress(subscription.module)}
                           </a>
                         </td>
-                        <td className="py-2 text-left">{((index + 1 * 2.2) / (index + index + 1) / 35).toFixed(2)}%</td>
+                        <td className="py-2 text-left">
+                          ~{(((index + 1) * subscriptions.length + 1 * 2.2) / (index + index + 1) / 3500).toFixed(5)}%
+                        </td>
                       </tr>
                     )
                   })}
