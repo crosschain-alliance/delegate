@@ -5,19 +5,7 @@ import { useNavigate } from "react-router"
 import Footer from "../../base/Footer"
 import { sliceAddress } from "../../../utils/address"
 import { getNickname } from "../../../utils/nicknames"
-
-const DATA = [
-  {
-    address: "0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8",
-    nSubscriptions: 2,
-    nVotes: 3,
-  },
-  {
-    address: "0xE6C2542904a67E1c87b1f76A8AbC949213b54414",
-    nSubscriptions: 2,
-    nVotes: 8,
-  },
-]
+import settings from "../../../settings"
 
 const Home = () => {
   const { openConnectModal } = useConnectModal()
@@ -61,7 +49,7 @@ const Home = () => {
                 </tr>
               </thead>
               <tbody>
-                {DATA.map(({ address, nSubscriptions, nVotes }, index) => (
+                {settings.data.map(({ address, nSubscriptions, nVotes }, index) => (
                   <tr
                     className="border-b border-gray-100 hover:bg-gray-100 transition-color cursor-pointer"
                     onClick={() => navigate(`address/${address}`)}

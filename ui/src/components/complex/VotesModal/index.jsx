@@ -11,10 +11,10 @@ const VotesModal = ({ isOpen, onClose, votes = [] }) => {
           </tr>
         </thead>
         <tbody>
-          {votes.map(({ args }) => (
-            <tr key={args.proposalId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-              <td className="py-2 px-2">{args.proposalId}</td>
-              <td className="py-2">{args.support ? "Yes" : "No"}</td>
+          {Object.values(votes).map(vote => (
+            <tr key={vote.proposalId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+              <td className="py-2 px-2">{vote.proposalId}</td>
+              <td className="py-2">{vote.support ? "Yes" : "No"}</td>
             </tr>
           ))}
         </tbody>
