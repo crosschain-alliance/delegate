@@ -4,12 +4,12 @@ import { Buffer } from "buffer"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createConfig, http, WagmiProvider } from "wagmi"
 import { RainbowKitProvider } from "@rainbow-me/rainbowkit"
+import { arbitrum, monadTestnet } from "viem/chains"
 
 import App from "./App.jsx"
-import "@rainbow-me/rainbowkit/styles.css"
 
+import "@rainbow-me/rainbowkit/styles.css"
 import "./index.css"
-import { arbitrum, monadTestnet } from "viem/chains"
 
 window.Buffer = window.Buffer || Buffer
 

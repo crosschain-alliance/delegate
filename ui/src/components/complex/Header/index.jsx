@@ -103,12 +103,14 @@ const CustomConnectButton = () => {
   )
 }
 
-const Header = () => {
+const Header = ({ withConnectButton }) => {
   return (
     <Fragment>
-      <div className="absolute bottom-0 w-full p-4 rounded-tr-3xl rounded-tl-3xl border border-gray-200 md:hidden">
-        <CustomConnectButton />
-      </div>
+      {withConnectButton && (
+        <div className="absolute bottom-0 w-full p-4 rounded-tr-3xl rounded-tl-3xl border border-gray-200 md:hidden">
+          <CustomConnectButton />
+        </div>
+      )}
       <nav className="bg-white p-4">
         <div className="mx-auto flex justify-between items-center">
           <div className="flex items-center justify-center">
@@ -117,9 +119,11 @@ const Header = () => {
               DeleGate
             </span>
           </div>
-          <div className="md:flex space-x-4 hidden">
-            <CustomConnectButton />
-          </div>
+          {withConnectButton && (
+            <div className="md:flex space-x-4 hidden">
+              <CustomConnectButton />
+            </div>
+          )}
         </div>
       </nav>
     </Fragment>
