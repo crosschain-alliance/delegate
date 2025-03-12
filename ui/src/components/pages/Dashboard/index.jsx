@@ -259,7 +259,7 @@ const Dashboard = () => {
             <>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-800">User Ethos</h2>
-                {isReadOnly && (
+                {!isReadOnly && (
                   <button
                     onClick={() => setShowEditEthosModal(true)}
                     className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer"

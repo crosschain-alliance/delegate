@@ -6,7 +6,18 @@ import Footer from "../../base/Footer"
 import { sliceAddress } from "../../../utils/address"
 import { getNickname } from "../../../utils/nicknames"
 
-const ADDRESSES = ["0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8", "0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8"]
+const DATA = [
+  {
+    address: "0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8",
+    nSubscriptions: 2,
+    nVotes: 3
+  },
+  {
+    address: "0xE6C2542904a67E1c87b1f76A8AbC949213b54414",
+    nSubscriptions: 2,
+    nVotes: 8
+  }
+]
 
 const Home = () => {
   const { openConnectModal } = useConnectModal()
@@ -50,20 +61,20 @@ const Home = () => {
                 </tr>
               </thead>
               <tbody>
-                {ADDRESSES.map((address, index) => (
+                {DATA.map(({address, nSubscriptions, nVotes}, index) => (
                   <tr
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors  cursor-pointer"
+                    className="border-b border-gray-100 hover:bg-gray-100 transition-color cursor-pointer"
                     onClick={() => navigate(`address/${address}`)}
                     key={address + index}
                   >
                     <td className="py-3 px-2 text-left">{getNickname(address)}</td>
                     <td className="py-3 px-2 text-left">
-                      <span className="underline text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
+                      <span className="underline text-blue-600 hover:text-blue-800">
                         {sliceAddress(address)}
                       </span>
                     </td>
-                    <td className="py-3 px-2 text-left">3</td>
-                    <td className="py-3 px-2 text-left">14</td>
+                    <td className="py-3 px-2 text-left">{nSubscriptions}</td>
+                    <td className="py-3 px-2 text-left">{nVotes}</td>
                   </tr>
                 ))}
               </tbody>
