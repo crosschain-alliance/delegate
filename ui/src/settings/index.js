@@ -3,26 +3,27 @@ import * as chains from "viem/chains"
 export default {
     data: [
         {
-          address: "0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8",
-          nSubscriptions: 2,
-          nVotes: 3,
-          votes: [{proposalId: 417, address: "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0"}]
+            address: "0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8",
+            nSubscriptions: 2,
+            nVotes: 3,
+            votes: [{ proposalId: 417, address: "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0" }]
         },
         {
-          address: "0xE6C2542904a67E1c87b1f76A8AbC949213b54414",
-          nSubscriptions: 2,
-          nVotes: 8,
-          votes: [
-            {
-                proposalId: "90008155879610681976211370898664529133451761866126020049163893113671401566233", 
-                address: "0xc93DE629BF8f4Aa7051589F37d2AffdfCCe940cA"},
-            {
-                proposalId: "14881197137069494959448952699217598923721993392617887469969318742509097999570",
-                address: "0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9"
-            }
-          ]
+            address: "0xE6C2542904a67E1c87b1f76A8AbC949213b54414",
+            nSubscriptions: 2,
+            nVotes: 8,
+            votes: [
+                {
+                    proposalId: "90008155879610681976211370898664529133451761866126020049163893113671401566233",
+                    address: "0xc93DE629BF8f4Aa7051589F37d2AffdfCCe940cA"
+                },
+                {
+                    proposalId: "14881197137069494959448952699217598923721993392617887469969318742509097999570",
+                    address: "0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9"
+                }
+            ]
         },
-      ],
+    ],
     daos: [
         {
             name: "Arbitrum",
@@ -48,7 +49,7 @@ export default {
             chainId: chains.arbitrum.id,
             link: "https://www.tally.xyz/gov/gmx"
         },
-        {   
+        {
             name: "OnChainAustria",
             address: "0xc93DE629BF8f4Aa7051589F37d2AffdfCCe940cA",
             chainId: chains.arbitrum.id,

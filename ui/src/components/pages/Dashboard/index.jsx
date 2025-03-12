@@ -225,7 +225,7 @@ const Dashboard = () => {
     try {
       setIsLoadingVotingActivity(true)
 
-      const userData = settings.data?.find(data => data.address === account.address)
+      const userData = settings.data?.find((data) => data.address === account.address)
       if (userData) {
         setVotes(userData.votes)
       }
@@ -528,39 +528,34 @@ const Dashboard = () => {
               </thead>
               <tbody>
                 {Object.values(votes).map((vote) => (
-                    <tr
-                      key={vote.proposalId}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-2">
-                        <a
-                          className="underline text-blue-600 hover:text-blue-800 transition-colors"
-                          href={
-                            settings.daos.find((dao) => dao.address.toLowerCase() === vote.address.toLowerCase()).link
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {settings.daos.find((dao) => dao.address.toLowerCase() === vote.address.toLowerCase()).name}
-                        </a>
-                      </td>
-                      <td className="py-2">
-                        <div className="text-gray-600 hover:text-blue-800 transition-colors">
-                          {vote.proposalId}
-                        </div>
-                      </td>
-                      <td className="py-2 text-right">
-                        <a
-                          className="underline text-blue-600 hover:text-blue-800 transition-colors"
-                          href={`https://arbiscan.io/tx/${vote.transactionHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Executed
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
+                  <tr key={vote.proposalId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="py-2">
+                      <a
+                        className="underline text-blue-600 hover:text-blue-800 transition-colors"
+                        href={
+                          settings.daos.find((dao) => dao.address.toLowerCase() === vote.address.toLowerCase()).link
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {settings.daos.find((dao) => dao.address.toLowerCase() === vote.address.toLowerCase()).name}
+                      </a>
+                    </td>
+                    <td className="py-2">
+                      <div className="text-gray-600 hover:text-blue-800 transition-colors">{vote.proposalId}</div>
+                    </td>
+                    <td className="py-2 text-right">
+                      <a
+                        className="underline text-blue-600 hover:text-blue-800 transition-colors"
+                        href={`https://arbiscan.io/tx/${vote.transactionHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Executed
+                      </a>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </>

@@ -37,7 +37,7 @@ const EditEthosModal = ({ currentEthos = {}, isOpen, onClose, onUpdated }) => {
       console.log("transaction hash:", txHash)
 
       await waitForTransactionReceipt(walletClient, {
-        hash: txHash
+        hash: txHash,
       })
       onUpdated()
     } catch (err) {
