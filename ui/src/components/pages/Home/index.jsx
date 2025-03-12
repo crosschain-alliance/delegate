@@ -1,6 +1,7 @@
-import React, { useCallback } from "react"
+import React, { useCallback, useEffect } from "react"
 import { useConnectModal } from "@rainbow-me/rainbowkit"
 import { useNavigate } from "react-router"
+import { useAccount, useWalletClient } from "wagmi"
 
 import Footer from "../../base/Footer"
 import { sliceAddress } from "../../../utils/address"
@@ -10,15 +11,21 @@ import settings from "../../../settings"
 const Home = () => {
   const { openConnectModal } = useConnectModal()
   const navigate = useNavigate()
+  const connectedAccount = useAccount()
 
   const onConnect = useCallback(async () => {
     try {
       openConnectModal && openConnectModal()
-      navigate("dashboard")
     } catch (err) {
       console.error(err)
     }
   }, [openConnectModal, navigate])
+
+  useEffect(() => {
+    if (connectedAccount.address) {
+      navigate("dashboard")
+    }
+  }, [connectedAccount])
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
