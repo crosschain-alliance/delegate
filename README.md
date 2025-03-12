@@ -49,6 +49,7 @@ By leveraging **LLMs for analysis, KMS for security, and Monad for efficient exe
 ### Prerequisites
 - Node.js (for UI & Relayer)
 - Rust & Cargo (for smart contracts)
+- Acurast CLI (only in case of Acurast usage)
 - Docker (optional, for deployment)
 
 ### Installation

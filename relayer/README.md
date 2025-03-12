@@ -26,6 +26,7 @@ Each service can be configured and has been tested with different LLMs:
 - Docker (optional)
 - Access to an Ethereum RPC endpoint
 - OpenAI API key (or other LLM provider)
+- Acurast CLI (for Acurast usage)
 
 ## Quick Start
 
