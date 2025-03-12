@@ -36,10 +36,13 @@ export default {
     contractAddresses: {
         [chains.monadTestnet.id]: {
             keyringGateway: "0xa06A56B4E1E951B035567bc064C42A9eE2b9BDd2",
-            deleGate: "0x4d37AddD52BB2f28b57AEb99ed98ad7Be878686d",
+            deleGate: "0xec5eF31A773b3F135A093dd1A6e9B9C06e433710",
         },
         [chains.arbitrum.id]: {
             keyringGateway: "0x8b44EC369BAbF9b55c90446623e68E83959397f8"
+        },
+        [chains.mainnet.id]: {
+            keyringGateway: "0xce5dF6D41e7cC4780E75b001BC64588440b3450b"
         }
     },
     deployBlockNumbers: {

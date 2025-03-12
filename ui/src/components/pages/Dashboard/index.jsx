@@ -136,7 +136,7 @@ const Dashboard = () => {
       try {
         if (step === 0) {
           // Nomad
-          const txHash = await deployContract(walletClient, {
+          let txHash = await deployContract(walletClient, {
             abi: kmsAdapterAbi,
             bytecode: kmsAdapterBytecode,
             args: [
@@ -148,7 +148,20 @@ const Dashboard = () => {
           const receipt = await waitForTransactionReceipt(walletClient, {
             hash: txHash,
           })
-          console.log("KmsAdapter:", receipt.contractAddress)
+
+          const kmsAdapter = receipt.contractAddress
+          console.log("KmsAdapter:", kmsAdapter)
+
+          txHash = await walletClient.writeContract({
+            abi: deleGateAbi,
+            address: settings.contractAddresses[monadTestnet.id].deleGate,
+            functionName: "setKmsAdapter",
+            args: [kmsAdapter],
+            chain: monadTestnet,
+          })
+          await waitForTransactionReceipt(walletClient, {
+            hash: txHash,
+          })
 
           await walletClient.switchChain({ id: targetChainId })
           return await onSubscribe({

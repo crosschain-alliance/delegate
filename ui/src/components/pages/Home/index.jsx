@@ -10,13 +10,13 @@ const DATA = [
   {
     address: "0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8",
     nSubscriptions: 2,
-    nVotes: 3
+    nVotes: 3,
   },
   {
     address: "0xE6C2542904a67E1c87b1f76A8AbC949213b54414",
     nSubscriptions: 2,
-    nVotes: 8
-  }
+    nVotes: 8,
+  },
 ]
 
 const Home = () => {
@@ -61,7 +61,7 @@ const Home = () => {
                 </tr>
               </thead>
               <tbody>
-                {DATA.map(({address, nSubscriptions, nVotes}, index) => (
+                {DATA.map(({ address, nSubscriptions, nVotes }, index) => (
                   <tr
                     className="border-b border-gray-100 hover:bg-gray-100 transition-color cursor-pointer"
                     onClick={() => navigate(`address/${address}`)}
@@ -69,9 +69,7 @@ const Home = () => {
                   >
                     <td className="py-3 px-2 text-left">{getNickname(address)}</td>
                     <td className="py-3 px-2 text-left">
-                      <span className="underline text-blue-600 hover:text-blue-800">
-                        {sliceAddress(address)}
-                      </span>
+                      <span className="underline text-blue-600 hover:text-blue-800">{sliceAddress(address)}</span>
                     </td>
                     <td className="py-3 px-2 text-left">{nSubscriptions}</td>
                     <td className="py-3 px-2 text-left">{nVotes}</td>
