@@ -8,7 +8,7 @@ const getNickname = (_address) => {
     seed: addressLowerCase,
     style: 'capital',
     separator: ' ',
-    length: 2
+    length: 3
   })
 }
 

@@ -81,7 +81,7 @@ export default {
                 transactionHashUrl: "",
                 status: "Casted by DeleGate",
                 url: "https://www.tally.xyz/gov/arbitrum/proposal/47215139570733026393508270943324710379923699871435188004224569883226292800465",
-                choice: "Against",
+                choice: "For",
                 daoUrl: "https://www.tally.xyz/arbitrum/compound"
             },
             {
