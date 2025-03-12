@@ -3,25 +3,33 @@ import * as chains from "viem/chains"
 export default {
     data: [
         {
-            address: "0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8",
-            nSubscriptions: 2,
-            nVotes: 3,
-            votes: [{ proposalId: 417, address: "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0" }]
+          address: "0x1eAB2d7c886890A60c03aBf9954e5586F22A19d8",
+          nSubscriptions: 2,
+          nVotes: 3,
+          votes: [
+            {
+                proposalId: 417,
+                address: "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0",
+                transactionHash: ""
+            }
+        ]
         },
         {
-            address: "0xE6C2542904a67E1c87b1f76A8AbC949213b54414",
-            nSubscriptions: 2,
-            nVotes: 8,
-            votes: [
-                {
-                    proposalId: "90008155879610681976211370898664529133451761866126020049163893113671401566233",
-                    address: "0xc93DE629BF8f4Aa7051589F37d2AffdfCCe940cA"
-                },
-                {
-                    proposalId: "14881197137069494959448952699217598923721993392617887469969318742509097999570",
-                    address: "0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9"
-                }
-            ]
+          address: "0xE6C2542904a67E1c87b1f76A8AbC949213b54414",
+          nSubscriptions: 2,
+          nVotes: 8,
+          votes: [
+            {
+                proposalId: "90008155879610681976211370898664529133451761866126020049163893113671401566233", 
+                address: "0xc93DE629BF8f4Aa7051589F37d2AffdfCCe940cA",
+                transactionHash: ""
+            },
+            {
+                proposalId: "14881197137069494959448952699217598923721993392617887469969318742509097999570",
+                address: "0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9",
+                transactionHash: ""
+            }
+          ]
         },
     ],
     daos: [
@@ -29,31 +37,36 @@ export default {
             name: "Arbitrum",
             address: "0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9",
             chainId: chains.arbitrum.id,
-            link: "https://www.tally.xyz/gov/arbitrum"
+            link: "https://www.tally.xyz/gov/arbitrum",
+            explorer: "https://arbiscan.io/"
         },
         {
             name: "Compound",
             address: "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0",
             chainId: chains.mainnet.id,
-            link: "https://www.tally.xyz/gov/compound"
+            link: "https://www.tally.xyz/gov/compound",
+            explorer: "https://etherscan.io/"
         },
         {
             name: "ZKsync",
             address: "0x76705327e682F2d96943280D99464Ab61219e34f",
             chainId: chains.zksync.id,
-            link: "https://www.tally.xyz/gov/zksync"
+            link: "https://www.tally.xyz/gov/zksync",
+            explorer: "https://explorer.zksync.io/"
         },
         {
             name: "GMX",
             address: "0x4bd1cdAab4254fC43ef6424653cA2375b4C94C0E",
             chainId: chains.arbitrum.id,
-            link: "https://www.tally.xyz/gov/gmx"
+            link: "https://www.tally.xyz/gov/gmx",
+            explorer: "https://arbiscan.io/"
         },
         {
             name: "OnChainAustria",
             address: "0xc93DE629BF8f4Aa7051589F37d2AffdfCCe940cA",
             chainId: chains.arbitrum.id,
-            link: "https://www.tally.xyz/gov/onchainaustria-dao"
+            link: "https://www.tally.xyz/gov/onchainaustria-dao",
+            explorer: "https://arbiscan.io/"
         }
     ],
     contractAddresses: {
