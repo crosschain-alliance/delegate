@@ -290,11 +290,15 @@ const Dashboard = () => {
               {/* Principles */}
               <div className="flex items-start mb-4">
                 <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Principles</h3>
-
                 <h4 className="flex flex-wrap gap-2">
-                  <span className="inline-block bg-blue-50 text-blue-600 px-3 py-1 text-xs font-medium rounded-full italic">
-                    {ethos.principles}
-                  </span>
+                  {ethos.principles?.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-block bg-blue-50 text-blue-600 px-3 py-1 text-xs font-medium rounded-full italic"
+                    >
+                      {item}
+                    </span>
+                  ))}
                 </h4>
               </div>
 
@@ -494,7 +498,7 @@ const Dashboard = () => {
                             {sliceAddress(subscription.module)}
                           </a>
                         </td>
-                        <td className="py-2 text-left">#</td>
+                        <td className="py-2 text-left">{((index + 1 * 2.2) / (index + index + 1) / 35).toFixed(2)}%</td>
                       </tr>
                     )
                   })}
@@ -528,39 +532,29 @@ const Dashboard = () => {
               </thead>
               <tbody>
                 {Object.values(votes).map((vote) => (
-                    <tr
-                      key={vote.proposalId}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-2">
-                        <a
-                          className="underline text-blue-600 hover:text-blue-800 transition-colors"
-                          href={
-                            settings.daos.find((dao) => dao.address.toLowerCase() === vote.address.toLowerCase()).link
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {settings.daos.find((dao) => dao.address.toLowerCase() === vote.address.toLowerCase()).name}
-                        </a>
-                      </td>
-                      <td className="py-2">
-                        <div className="text-gray-600 hover:text-blue-800 transition-colors">
-                          {vote.proposalId}
-                        </div>
-                      </td>
-                      <td className="py-2 text-right">
-                        <a
-                          className="text-green-600 hover:text-blue-800 transition-colors"
-                          // href={`${settings.daos.find((dao) => dao.address.toLowerCase() === vote.address.toLowerCase()).explorer}/tx/${vote.transactionHash}`}
-                          // target="_blank"
-                          // rel="noopener noreferrer"
-                        >
-                          Delegated
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
+                  <tr key={vote.proposalId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="py-2">
+                      <a
+                        className="underline text-blue-600 hover:text-blue-800 transition-colors"
+                        href={vote.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {settings.daos.find((dao) => dao.address.toLowerCase() === vote.address.toLowerCase()).name}
+                      </a>
+                    </td>
+                    <td className="py-2">
+                      <div className="text-gray-600">{vote.title}</div>
+                    </td>
+                    <td className="py-2 text-right">
+                      <span
+                        className={`inline-block bg-${vote.status === "Delegated" ? "green" : vote.status === "Not Casted" ? "gray" : "blue"}-50 text-${vote.status === "Delegated" ? "green" : vote.status === "Not Casted" ? "gray" : "blue"}-600 px-3 py-1 text-xs font-medium rounded-full italic`}
+                      >
+                        {vote.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </>

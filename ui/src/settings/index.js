@@ -9,9 +9,36 @@ export default {
           votes: [
             {
                 proposalId: 417,
+                title: "[Gauntlet] - Rewards Top Up for Ethereum, Base and Optimism (10/3/25)",
                 address: "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0",
-                transactionHash: ""
-            }
+                transactionHash: "",
+                status: "Delegated",
+                url: "https://www.tally.xyz/gov/compound/proposal/417"
+            },
+            {
+                title: "2025 Compound Growth Program - Roadmap & Renewal - [AlphaGrowth] V3",
+                proposalId: 416, 
+                address: "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0",
+                transactionHash: "",
+                status: "Casted",
+                url: "https://www.tally.xyz/gov/compound/proposal/416"
+            },
+            {
+                title: "Add weETH as collateral into cUSDTv3 on Mainnet",
+                proposalId: 415, 
+                address: "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0",
+                transactionHash: "",
+                status: "Delegated",
+                url: "https://www.tally.xyz/gov/compound/proposal/415"
+            },
+            {
+                title: "Initialize cWETHv3 on Ronin",
+                proposalId: 414, 
+                address: "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0",
+                transactionHash: "",
+                status: "Not Casted",
+                url: "https://www.tally.xyz/gov/compound/proposal/414"
+            },
         ]
         },
         {
@@ -20,15 +47,38 @@ export default {
           nVotes: 8,
           votes: [
             {
-                proposalId: "90008155879610681976211370898664529133451761866126020049163893113671401566233", 
-                address: "0xc93DE629BF8f4Aa7051589F37d2AffdfCCe940cA",
-                transactionHash: ""
+                title: "Request to Increase the Stylus Sprint Committee’s Budget",
+                proposalId: "27831845498978337986467036886891836384283300266814708262424272663046958396151", 
+                address: "0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9",
+                transactionHash: "",
+                status: "Delegated",
+                url: "https://www.tally.xyz/gov/arbitrum/proposal/27831845498978337986467036886891836384283300266814708262424272663046958396151"
             },
             {
-                proposalId: "14881197137069494959448952699217598923721993392617887469969318742509097999570",
+                title: "Arbitrum D.A.O. (Domain Allocator Offerings) Grant Program - Season 3",
+                proposalId: "47215139570733026393508270943324710379923699871435188004224569883226292800465", 
                 address: "0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9",
-                transactionHash: ""
-            }
+                transactionHash: "",
+                status: "Delegated",
+                url: "https://www.tally.xyz/gov/arbitrum/proposal/47215139570733026393508270943324710379923699871435188004224569883226292800465"
+            },
+            {
+                title: "Non-Constitutional: Stable Treasury Endowment Program 2.0",
+                proposalId: "13323456481927947871314500108227684550647495448005726995657704713229313956489", 
+                address: "0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9",
+                transactionHash: "",
+                status: "Casted",
+                url: "https://www.tally.xyz/gov/arbitrum/proposal/13323456481927947871314500108227684550647495448005726995657704713229313956489"
+            },
+            {
+                title: "OpCo: A DAO-adjacent Entity for Strategy Execution",
+                proposalId: "41351298371775353090222506531903916823291804644712693824312064183457809617851", 
+                address: "0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9",
+                transactionHash: "",
+                status: "Casted",
+                url: "https://www.tally.xyz/gov/arbitrum/proposal/41351298371775353090222506531903916823291804644712693824312064183457809617851"
+            },
+            
           ]
         },
     ],
