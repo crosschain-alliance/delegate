@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { useConnectModal } from "@rainbow-me/rainbowkit"
 import { useNavigate } from "react-router"
 import { useAccount, useWalletClient } from "wagmi"
@@ -12,20 +12,22 @@ const Home = () => {
   const { openConnectModal } = useConnectModal()
   const navigate = useNavigate()
   const connectedAccount = useAccount()
+  const [pressed, setPressed] = useState(0)
 
   const onConnect = useCallback(async () => {
     try {
       openConnectModal && openConnectModal()
+      setPressed(1)
     } catch (err) {
       console.error(err)
     }
   }, [openConnectModal, navigate])
 
   useEffect(() => {
-    if (connectedAccount.address) {
+    if (connectedAccount.address && pressed) {
       navigate("dashboard")
     }
-  }, [connectedAccount])
+  }, [connectedAccount, pressed])
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
