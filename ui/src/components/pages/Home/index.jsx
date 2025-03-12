@@ -24,9 +24,12 @@ const Home = () => {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <main className="flex flex-1 items-center justify-center px-4">
         <div className="text-center max-w-2xl mx-auto w-full">
-          <h1 className="text-5xl font-bold text-gray-800 mb-4">Welcome to DeleGate</h1>
+          <div className="flex flex-col items-center justify-center">
+            <img src="./assets/png/robot.png" className="mr-6" width={128} height={64} alt="logo" />
+            <h1 className="text-6xl font-bold text-gray-800 mb-4 mt-4">Welcome to DeleGate</h1>
+          </div>
 
-          <p className="text-lg text-gray-700 leading-relaxed mt-8">
+          <p className=" bg-white border border-gray-200 rounded-lg shadow-sm p-6 text-lg">
             Please{" "}
             <span
               className="text-blue-600 underline hover:text-blue-800 transition-colors cursor-pointer"
@@ -38,7 +41,7 @@ const Home = () => {
             user below to monitor the activity
           </p>
 
-          <div className="overflow-x-auto mt-18">
+          <div className="overflow-x-auto mt-10">
             <table className="w-full text-base text-gray-600 border-collapse">
               <thead>
                 <tr className="border-b border-gray-200">

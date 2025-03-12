@@ -18,9 +18,9 @@ const EditEthosModal = ({ currentEthos = {}, isOpen, onClose, onUpdated }) => {
 
   useEffect(() => {
     if (isOpen) {
-      setPrinciples(currentEthos?.principles?.join(",") || "")
-      setValues(currentEthos?.values?.join(",") || "")
-      setInterests(currentEthos?.interests?.join(",") || "")
+      setPrinciples(currentEthos?.principles || "")
+      setValues(currentEthos?.values || "")
+      setInterests(currentEthos?.interests || "")
     }
   }, [isOpen])
 

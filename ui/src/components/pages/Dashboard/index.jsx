@@ -1,23 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { deployContract, waitForTransactionReceipt } from "viem/actions"
-import { useAccount, useWalletClient, usePublicClient } from "wagmi"
+import { useAccount, useWalletClient } from "wagmi"
 import { createPublicClient, http, zeroAddress } from "viem"
-import { arbitrum, monadTestnet } from "viem/chains"
-import { useLocation, useParams } from "react-router"
+import { monadTestnet } from "viem/chains"
+import { useLocation } from "react-router"
+import { FaExternalLinkAlt } from "react-icons/fa"
 
 import settings from "../../../settings"
 import { config } from "../../../main"
-import { fetchEvents } from "../../../utils/events"
 import keyringDeleGateModuleBytecode from "../../../utils/bytecodes/keyringDeleGateModule.json"
 import keyringDeleGateModuleAbi from "../../../utils/abi/keyringDeleGateModule.json"
 import kmsAdapterAbi from "../../../utils/abi/kmsAdapter.json"
 import deleGateAbi from "../../../utils/abi/deleGate.json"
-import governorAbi from "../../../utils/abi/governor.json"
 import kmsAdapterBytecode from "../../../utils/bytecodes/kmsAdapter.json"
 
 import Header from "../../complex/Header"
 import EditEthosModal from "../../complex/EditEthosModal"
-import VotesModal from "../../complex/VotesModal"
 import Selector from "../../base/Selector"
 import Spinner from "../../base/Spinner"
 import Footer from "../../base/Footer"
@@ -37,9 +35,9 @@ const Dashboard = () => {
   const [subscriptions, setSubscriptions] = useState([])
   const [votes, setVotes] = useState([])
   const [kmsAdapter, setKmsAdapter] = useState("Keyring")
-  const [llmAdapter, setLlmAdapter] = useState("OpenAI")
+  const [llmAdapter, setLlmAdapter] = useState("Acurast")
   const [openAIllmModel, setOpenAILlmModel] = useState("gpt-4.5-preview")
-  const [acurastllmModel, setAcurastLlmModel] = useState("llama-8B")
+  const [acurastllmModel, setAcurastLlmModel] = useState("qwen2-14B")
   const [isLoadingVotingActivity, setIsLoadingVotingActivity] = useState(false)
   const { data: walletClient } = useWalletClient({ config })
   const connectedAccount = useAccount()
@@ -79,9 +77,9 @@ const Dashboard = () => {
       })
 
       setEthos({
-        values: ethos.values.split(","),
-        interests: ethos.interests.split(","),
-        principles: ethos.principles.split(","),
+        values: ethos.values,
+        interests: ethos.interests,
+        principles: ethos.principles,
       })
     } catch (err) {
       console.error(err)
@@ -270,10 +268,7 @@ const Dashboard = () => {
       <main className="flex-grow container mx-auto px-4 py-8">
         {/* Ethos Section */}
         <section className="max-w-5xl mx-auto mb-8 bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-          {ethos &&
-          ethos.values?.some((v) => v.trim() !== "") &&
-          ethos.interests?.some((i) => i.trim() !== "") &&
-          ethos.principles?.some((p) => p.trim() !== "") ? (
+          {ethos ? (
             <>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-800">User Ethos</h2>
@@ -291,14 +286,9 @@ const Dashboard = () => {
               <div className="flex items-start mb-4">
                 <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Principles</h3>
                 <h4 className="flex flex-wrap gap-2">
-                  {ethos.principles?.map((item, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-block bg-blue-50 text-blue-600 px-3 py-1 text-xs font-medium rounded-full italic"
-                    >
-                      {item}
-                    </span>
-                  ))}
+                  <span className="inline-block bg-blue-50 text-blue-600 px-3 py-1 text-xs font-medium rounded-full italic">
+                    {ethos.principles}
+                  </span>
                 </h4>
               </div>
 
@@ -306,14 +296,9 @@ const Dashboard = () => {
               <div className="flex items-start mb-4">
                 <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Values</h3>
                 <div className="flex flex-wrap gap-2">
-                  {ethos.values?.map((item, idx) => (
-                    <span
-                      key={"ethos" + idx}
-                      className="inline-block bg-green-50 text-green-600 px-3 py-1 text-xs font-medium rounded-full italic"
-                    >
-                      {item}
-                    </span>
-                  ))}
+                  <span className="inline-block bg-green-50 text-green-600 px-3 py-1 text-xs font-medium rounded-full italic">
+                    {ethos.values}
+                  </span>
                 </div>
               </div>
 
@@ -321,14 +306,9 @@ const Dashboard = () => {
               <div className="flex items-start">
                 <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Interests</h3>
                 <div className="flex flex-wrap gap-2">
-                  {ethos.interests?.map((item, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-block bg-purple-50 text-purple-600 px-3 py-1 text-xs font-medium rounded-full italic"
-                    >
-                      {item}
-                    </span>
-                  ))}
+                  <span className="inline-block bg-purple-50 text-purple-600 px-3 py-1 text-xs font-medium rounded-full italic">
+                    {ethos.interests}
+                  </span>
                 </div>
               </div>
             </>
@@ -440,11 +420,13 @@ const Dashboard = () => {
                         </td>
                         <td className="py-2 text-right">
                           {subscriptions.some((sub) => sub.dao.toLowerCase() === dao.address.toLowerCase()) ? (
-                            <span className="px-3 py-1 text-gray-500 font-medium">Subscribed</span>
+                            <span className="px-3 py-1 rounded bg-white text-blue font-medium border transition-colors cursor-pointer w-26">
+                              Subscribed
+                            </span>
                           ) : (
                             <button
                               onClick={() => onSubscribe({ targetChainId: dao.chainId, daoAddress: dao.address })}
-                              className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer"
+                              className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer w-26"
                             >
                               Subscribe
                             </button>
@@ -527,34 +509,74 @@ const Dashboard = () => {
                 <tr className="border-b border-gray-200">
                   <th className="py-2 text-left font-medium">DAO</th>
                   <th className="py-2 text-left font-medium">Vote title</th>
+                  <th className="py-2 text-left font-medium">Choice</th>
                   <th className="py-2 text-right font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {Object.values(votes).map((vote) => (
-                  <tr key={vote.proposalId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-2">
-                      <a
-                        className="underline text-blue-600 hover:text-blue-800 transition-colors"
-                        href={vote.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {settings.daos.find((dao) => dao.address.toLowerCase() === vote.address.toLowerCase()).name}
-                      </a>
-                    </td>
-                    <td className="py-2">
-                      <div className="text-gray-600">{vote.title}</div>
-                    </td>
-                    <td className="py-2 text-right">
-                      <span
-                        className={`inline-block bg-${vote.status === "Delegated" ? "green" : vote.status === "Not Casted" ? "gray" : "blue"}-50 text-${vote.status === "Delegated" ? "green" : vote.status === "Not Casted" ? "gray" : "blue"}-600 px-3 py-1 text-xs font-medium rounded-full italic`}
-                      >
-                        {vote.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {Object.values(votes).map((vote) => {
+                  let color = "gray"
+                  if (vote.status === "Casted by DeleGate") {
+                    color = "green"
+                  }
+                  if (vote.status === "Not casted") {
+                    color = "gray"
+                  }
+                  if (vote.status === "Casted by User") {
+                    color = "blue"
+                  }
+                  if (vote.status === "Waiting") {
+                    color = "purple"
+                  }
+
+                  return (
+                    <tr key={vote.proposalId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-2">
+                        <a
+                          className="underline text-blue-600 hover:text-blue-800 transition-colors"
+                          href={vote.daoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {settings.daos.find((dao) => dao.address.toLowerCase() === vote.address.toLowerCase()).name}
+                        </a>
+                      </td>
+                      <td className="py-2">
+                        <a
+                          className="underline text-blue-600 hover:text-blue-800 transition-colors"
+                          href={vote.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {vote.title}
+                        </a>
+                      </td>
+                      <td className="py-2 text-left">
+                        <span>{vote.choice}</span>
+                      </td>
+                      <td className="py-2 text-right">
+                        <div className="flex items-center justify-end">
+                          <span
+                            className={`inline-block bg-${color}-50 text-${color}-600 px-3 py-1 text-xs font-medium rounded-full italic`}
+                          >
+                            {vote.status}
+                          </span>
+                          {vote.status === "Casted by DeleGate" && (
+                            <a
+                              className="text-gray-600 hover:text-gray-800 transition-colors"
+                              href={vote.transactionHashUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {" "}
+                              <FaExternalLinkAlt />
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </>

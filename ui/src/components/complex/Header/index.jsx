@@ -114,8 +114,8 @@ const Header = ({ withConnectButton }) => {
       <nav className="bg-white p-4">
         <div className="mx-auto flex justify-between items-center">
           <div className="flex items-center justify-center">
-            <img src="./assets/png/logo.png" width={32} height={32} alt="logo" />
-            <span className="hover:bg-gray-100 p-1 md:p-2 rounded-xl text-gray-600 cursor-pointer font-medium ml-2">
+            <img src="./assets/png/robot.png" width={48} height={48} alt="logo" />
+            <span className="p-1 md:p-2 rounded-xl text-gray-600 cursor-pointer font-medium ml-2 text-xl">
               DeleGate
             </span>
           </div>
