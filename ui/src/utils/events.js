@@ -1,5 +1,5 @@
-const fetchEvents = async (client, deployBlockNumber, call) => {
-  let foundOne = false
+const fetchEvents = async (client, deployBlockNumber, find, call) => {
+  let found = 0 
   let toBlock = await client.getBlockNumber()
   let allEvents = []
   while (true) {
@@ -10,10 +10,11 @@ const fetchEvents = async (client, deployBlockNumber, call) => {
       toBlock,
     })
 
-    if ((events.length === 0 && foundOne) || fromBlock <= deployBlockNumber) break
+    if ((events.length === 0 && found >= find) || fromBlock <= deployBlockNumber) break
 
+    
     if (events.length > 0) {
-      foundOne = true
+      found++
       allEvents.push(...events)
     }
 

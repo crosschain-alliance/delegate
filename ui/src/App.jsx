@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { deployContract, waitForTransactionReceipt } from "viem/actions"
-import { useAccount, useWalletClient } from "wagmi"
+import { useAccount, useWalletClient, usePublicClient } from "wagmi"
 import { createPublicClient, http, zeroAddress } from "viem"
-import { monadTestnet } from "viem/chains"
+import { arbitrum, monadTestnet } from "viem/chains"
 
 import settings from "./settings"
 import { config } from "./main"
@@ -17,6 +17,7 @@ import kmsAdapterBytecode from "./utils/bytecodes/kmsAdapter.json"
 import Header from "./components/complex/Header"
 import EditEthosModal from "./components/complex/EditEthosModal"
 import VotesModal from "./components/complex/VotesModal"
+import Selector from "./components/base/Selector"
 
 const sliceAddress = (address) => `${address.slice(0, 6)}...${address.slice(address.length - 4, address.length)}`
 
@@ -32,9 +33,20 @@ export default () => {
   const [subcriptions, setSubscriptions] = useState([])
   const [numberOfVotes, setNumberOfVotes] = useState([])
   const [votes, setVotes] = useState([])
-  const [kmsAdapter, setKmsAdapter] = useState()
+  const [kmsAdapter, setKmsAdapter] = useState('Keyring')
+  const [llmAdapter, setLlmAdapter] = useState('OpenAI')
+  const [openAIllmModel, setOpenAILlmModel] = useState('gpt-4.5-preview')
+  const [acurastllmModel, setAcurastLlmModel] = useState('llama-8B')
   const { data: walletClient } = useWalletClient({ config })
   const account = useAccount()
+
+  const monadClient = usePublicClient({
+    chainId: monadTestnet.id,
+  })
+
+  const arbitrumClient = usePublicClient({
+    chainId: arbitrum.id,
+  })
 
   useEffect(() => {
     if (account.address && !loaded.current) {
@@ -51,7 +63,7 @@ export default () => {
 
   const fetchEthos = useCallback(async () => {
     try {
-      const ethos = await client.readContract({
+      const ethos = await monadClient.readContract({
         abi: deleGateAbi,
         address: settings.contractAddresses[monadTestnet.id].deleGate,
         functionName: "getUserEthos",
@@ -94,7 +106,7 @@ export default () => {
   const fetchUserData = useCallback(async () => {
     try {
       const [kmsAdapter] = await Promise.all([
-        client.readContract({
+        monadClient.readContract({
           abi: deleGateAbi,
           address: settings.contractAddresses[monadTestnet.id].deleGate,
           functionName: "getUserKmsAdapter",
@@ -104,7 +116,34 @@ export default () => {
         fetchEthos(),
       ])
 
-      setKmsAdapter(kmsAdapter)
+      // setKmsAdapter('Keyring') // todo use the contract data
+
+      const subscriptionEvents = await fetchEvents(
+        monadClient,
+        settings.deployBlockNumbers[monadTestnet.id].deleGate,
+        2,
+        ({ fromBlock, toBlock }) =>
+          monadClient.getContractEvents({
+            abi: deleGateAbi,
+            address: settings.contractAddresses[monadTestnet.id].deleGate,
+            args: {
+              voter: [account.address],
+            },
+            eventName: "Subscribed",
+            fromBlock,
+            strict: true,
+            toBlock,
+          }),
+      )
+      setSubscriptionEvents(
+        subscriptionEvents.map(({ args }) => {
+          const dao = settings.daos.find(({ address }) => address.toLowerCase() === args.dao.toLowerCase())
+          return {
+            dao,
+            eventArgs: args,
+          }
+        }),
+      )
     } catch (err) {
       console.error(err)
     }
@@ -188,32 +227,30 @@ export default () => {
     [walletClient],
   )
 
-  const fetchSubscriptionsVotes = useCallback(async () => {
-    try {
-      // TODO: make client dynamic
-      /*const client = createPublicClient({
-        transport: http("https://arb-mainnet.g.alchemy.com/v2/c_lEuDySbbwy5iWTXupQNZbWbo--pJ45"),
-      })
-      const numberofVotes = subcriptions.map(async (subscription) => {
-        const voteEvents = await fetchEvents(
-          client,
-          (await client.getBlockNumber()) - 1500000n,
-          ({ fromBlock, toBlock }) =>
-            client.getContractEvents({
-              abi: governorAbi,
-              address: subscription.dao.address,
-              args: {
-                voter: [account.address],
-              },
-              eventName: "VoteCast",
-              fromBlock,
-              strict: true,
-              toBlock,
-            }),
-        )
-        setVotes(voteEvents)
-        return voteEvents.length
-      })*/
+  const getSubscriptionVotes = useCallback(async () => {
+    const numberofVotes = subscriptionEvents.map(async (subscription) => {
+      const voteEvents = await fetchEvents(
+        arbitrumClient,
+        settings.deployBlockNumbers[monadTestnet.id].deleGate,
+        1,
+        ({ fromBlock, toBlock }) =>
+          arbitrumClient.getContractEvents({
+            abi: governorAbi,
+            address: subscription.dao.address,
+            args: {
+              voter: [account.address],
+            },
+            eventName: "VoteCast",
+            fromBlock,
+            strict: true,
+            toBlock,
+          }),
+      )
+      let rtn = votes
+      rtn[subscription.dao.address] = voteEvents
+      setVotes(rtn)
+      return voteEvents.length
+    })
 
       setNumberOfVotes(1)
     } catch (err) {
@@ -230,64 +267,139 @@ export default () => {
       <main className="flex-grow container mx-auto px-4 py-8">
         {/* Ethos Section */}
         <section className="max-w-5xl mx-auto mb-8 bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+        {ethos && ethos.values?.some(v => v.trim() !== '') && 
+          ethos.interests?.some(i => i.trim() !== '') && 
+          ethos.principles?.some(p => p.trim() !== '') ? (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">User Ethos</h2>
+              <button
+                onClick={() => setShowEditEthosModal(true)}
+                className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer"
+              >
+                Modify
+              </button>
+            </div>
+
+            {/* Principles */}
+            <div className="flex items-start mb-4">
+              <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Principles</h3>
+            
+              <h4 className="flex flex-wrap gap-2">
+                  <span
+                    className="inline-block bg-blue-50 text-blue-600 px-3 py-1 text-xs font-medium rounded-full italic hover:bg-blue-100 transition-colors"
+                  >
+                    {ethos.principles}
+                  </span>
+              </h4>
+            </div>
+
+            {/* Values */}
+            <div className="flex items-start mb-4">
+              <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Values</h3>
+              <div className="flex flex-wrap gap-2">
+                {ethos.values?.map((item, idx) => (
+                  <span
+                    key={"ethos" + idx}
+                    className="inline-block bg-green-50 text-green-600 px-3 py-1 text-xs font-medium rounded-full italic hover:bg-green-100 transition-colors"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Interests */}
+            <div className="flex items-start">
+              <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Interests</h3>
+              <div className="flex flex-wrap gap-2">
+                {ethos.interests?.map((item, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-block bg-purple-50 text-purple-600 px-3 py-1 text-xs font-medium rounded-full italic hover:bg-purple-100 transition-colors"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </> 
+        ) : (
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">User Ethos</h2>
+            <div className="flex-column items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-800">User Ethos</h2>
+              <div className="text-sm text-gray-600">
+                You haven't set your ethos yet.
+              </div>
+            </div>
             <button
               onClick={() => setShowEditEthosModal(true)}
               className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer"
             >
-              Modify
+              Set
             </button>
           </div>
+        )}
+        </section>
 
-          {/* Principles */}
-          <div className="flex items-start mb-4">
-            <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Principles</h3>
-            <div className="flex flex-wrap gap-2">
-              {ethos?.principles?.map((item, idx) => (
-                <span
-                  key={idx}
-                  className="inline-block bg-blue-50 text-blue-600 px-3 py-1 text-xs font-medium rounded-full hover:bg-blue-100 transition-colors"
-                >
-                  {item}
-                </span>
-              ))}
+        {/* Config */}
+        <section className="max-w-5xl mx-auto mb-8 bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex-column items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-800">Config</h2>
+              </div>
+              <button
+                onClick={() => null}
+                className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer"
+              >
+                Update Configuration
+              </button>
             </div>
-          </div>
 
-          {/* Values */}
-          <div className="flex items-start mb-4">
-            <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Values</h3>
-            <div className="flex flex-wrap gap-2">
-              {ethos?.values?.map((item, idx) => (
-                <span
-                  key={"ethos" + idx}
-                  className="inline-block bg-green-50 text-green-600 px-3 py-1 text-xs font-medium rounded-full hover:bg-green-100 transition-colors"
-                >
-                  {item}
-                </span>
-              ))}
+            <div className="flex items-start mb-4">
+              <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">KMS</h3>
+            
+              <h4 className="flex flex-wrap gap-2">
+                <Selector onClick={setKmsAdapter} name="Keyring" config={kmsAdapter} />
+              </h4>
             </div>
-          </div>
 
-          {/* Interests */}
-          <div className="flex items-start">
-            <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Interests</h3>
-            <div className="flex flex-wrap gap-2">
-              {ethos?.interests?.map((item, idx) => (
-                <span
-                  key={idx}
-                  className="inline-block bg-purple-50 text-purple-600 px-3 py-1 text-xs font-medium rounded-full hover:bg-purple-100 transition-colors"
-                >
-                  {item}
-                </span>
-              ))}
+            <div className="flex items-start mb-4">
+              <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">LLM</h3>
+            
+              <h4 className="flex flex-wrap gap-2">
+                <Selector onClick={setLlmAdapter} name="OpenAI" config={llmAdapter} />
+                <Selector onClick={setLlmAdapter} name="Acurast" config={llmAdapter} />
+              </h4>
             </div>
-          </div>
+
+            <div className="flex items-start mb-4">
+              <h3 className="font-medium text-sm text-gray-600 w-24 flex-shrink-0">Model</h3>
+              
+              
+              <h4 className="flex flex-wrap gap-2">
+                {llmAdapter === 'OpenAI' && (
+                  <>
+                    <Selector onClick={setOpenAILlmModel} name="gpt-4o-mini" config={openAIllmModel} />
+                    <Selector onClick={setOpenAILlmModel} name="gpt-4o" config={openAIllmModel} />
+                    <Selector onClick={setOpenAILlmModel} name="gpt-4.5-preview" config={openAIllmModel} />
+                  </>
+                )}
+                {llmAdapter === 'Acurast' && (
+                  <>
+                    <Selector onClick={setAcurastLlmModel} name="llama-3B" config={acurastllmModel} />
+                    <Selector onClick={setAcurastLlmModel} name="llama-8B" config={acurastllmModel} />
+                    <Selector onClick={setAcurastLlmModel} name="qwen2-14B" config={acurastllmModel} />
+                  </>
+                )}
+              </h4>
+            </div>
+          </>
         </section>
 
         {/* DAOs & Subscriptions */}
-        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="max-w-5xl mb-8 mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Subscribe to DAOs */}
           <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Subscribe to DAOs</h2>
@@ -296,7 +408,8 @@ export default () => {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="py-2 text-left font-medium">Name</th>
-                    <th className="py-2 text-left font-medium"></th>
+                    <th className="py-2 text-left font-medium">Type</th>
+                    <th className="py-2 text-right font-medium">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -313,12 +426,29 @@ export default () => {
                         </a>
                       </td>
                       <td className="py-2">
-                        <button
-                          onClick={() => onSubscribe({ targetChainId: dao.chainId, daoAddress: dao.address })}
-                          className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer"
+                        <div
+                          className="text-gray-600 hover:text-blue-800 transition-colors"
                         >
-                          Subscribe
-                        </button>
+                          Tally
+                        </div>
+                      </td>
+                      <td className="py-2 text-right">
+                        {
+                          subscriptionEvents.some(
+                            (sub) => sub.dao.address.toLowerCase() === dao.address.toLowerCase()
+                          ) ? (
+                            <span className="px-3 py-1 text-gray-500 font-medium">
+                              Subscribed
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => onSubscribe({ targetChainId: dao.chainId, daoAddress: dao.address })}
+                              className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer"
+                            >
+                              Subscribe
+                            </button>
+                          )
+                        }
                       </td>
                     </tr>
                   ))}
@@ -336,7 +466,7 @@ export default () => {
                   <tr className="border-b border-gray-200">
                     <th className="py-2 text-left font-medium">DAO</th>
                     <th className="py-2 text-left font-medium">DeleGated Address</th>
-                    <th className="py-2 text-left font-medium">Votes</th>
+                    <th className="py-2 text-left font-medium">Voting weight</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -367,13 +497,8 @@ export default () => {
                             {sliceAddress(subscription.module)}
                           </a>
                         </td>
-                        <td className="py-2">
-                          <button
-                            onClick={() => setShowVotesModal(true)}
-                            className="px-3 py-1 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors cursor-pointer"
-                          >
-                            {numberOfVotes}
-                          </button>
+                        <td className="py-2 text-left">
+                          #
                         </td>
                       </tr>
                     )
@@ -383,6 +508,61 @@ export default () => {
             </div>
           </div>
         </div>
+
+        {/* Voting Activity */}
+        <section className="max-w-5xl mx-auto mb-8 bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex-column items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-800">Voting Activity</h2>
+              </div>
+            </div>
+
+            <table className="w-full text-sm text-gray-600">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="py-2 text-left font-medium">DAO</th>
+                    <th className="py-2 text-left font-medium">Vote title</th>
+                    <th className="py-2 text-right font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.values(votes).flat().map(event => (
+                    <tr key={event.args.proposalId} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-2">
+                        <a
+                          className="underline text-blue-600 hover:text-blue-800 transition-colors"
+                          href={settings.daos.find(dao => dao.address.toLowerCase() === event.address.toLowerCase()).link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {settings.daos.find(dao => dao.address.toLowerCase() === event.address.toLowerCase()).name}
+                        </a>
+                      </td>
+                      <td className="py-2">
+                        <div
+                          className="text-gray-600 hover:text-blue-800 transition-colors"
+                        >
+                          {event.args.proposalId}
+                        </div>
+                      </td>
+                      <td className="py-2 text-right">
+                        <a
+                          className="underline text-blue-600 hover:text-blue-800 transition-colors"
+                          href={`https://arbiscan.io/tx/${event.transactionHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Executed
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+          </>
+        </section>
       </main>
 
       {/* Footer */}

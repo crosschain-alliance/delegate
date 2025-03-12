@@ -18,19 +18,20 @@ const EditEthosModal = ({ currentEthos = {}, isOpen, onClose, onUpdated }) => {
 
   useEffect(() => {
     if (isOpen) {
-      setPrinciples(currentEthos?.principles?.join("'") || "")
-      setValues(currentEthos?.values?.join("'") || "")
-      setInterests(currentEthos?.interests?.join("'") || "")
+      setPrinciples(currentEthos?.principles?.join(",") || "")
+      setValues(currentEthos?.values?.join(",") || "")
+      setInterests(currentEthos?.interests?.join(",") || "")
     }
   }, [isOpen])
 
   const onUpdateEthos = useCallback(async () => {
     try {
+      console.log(principles, values, interests)
       const txHash = await walletClient.writeContract({
         abi: deleGateAbi,
         address: settings.contractAddresses[monadTestnet.id].deleGate,
         functionName: "defineEthos",
-        args: [[principles, values, interests]],
+        args: [[interests, principles, values]],
       })
 
       console.log("transaction hash:", txHash)

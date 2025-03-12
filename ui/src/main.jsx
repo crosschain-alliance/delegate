@@ -18,8 +18,8 @@ monadTestnet.iconUrl = "./assets/png/monad.png"
 export const config = createConfig({
   chains: [monadTestnet, arbitrum],
   transports: {
-    [monadTestnet.id]: http(),
-    [arbitrum.id]: http(),
+    [monadTestnet.id]: http("https://monad-testnet.g.alchemy.com/v2/75LszqDvCMiLQrNFyqricZtsZH0pFSc1"),
+    [arbitrum.id]: http("https://arb-mainnet.g.alchemy.com/v2/c_lEuDySbbwy5iWTXupQNZbWbo--pJ45"),
   },
 })
 
