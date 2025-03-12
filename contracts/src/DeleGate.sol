@@ -115,7 +115,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         address voter = msg.sender;
         Subscription[] storage subscriptions = _userSubscribtions[voter];
         subscriptions.push(Subscription({targetChainId: targetChainId, dao: dao, module: module}));
-        bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, module, voter));
+        bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, voter, module));
         _enabledSubscriptions[subscriptionId] = true;
         emit Subscribed(targetChainId, dao, voter, module);
     }
