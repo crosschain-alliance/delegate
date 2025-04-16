@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=davos
+      - MONGO_INITDB_ROOT_PASSWORD=voterpassword
+    # Fixed healthcheck to use authentication
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--host", "localhost", "--username", "davos", "--password", "voterpassword", "--authenticationDatabase", "admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s  # Increased startup grace period
+    command: ["mongod", "--bind_ip_all"]  # Ensure MongoDB binds to all interfaces
+
+  davos-voter-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - API_PORT=3000
+      - MONGODB_URI=mongodb://davos:voterpassword@mongodb:27017/davos-voter?authSource=admin
+      - RPC_URL=${RPC_URL}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - REL_CHAIN=${REL_CHAIN}
+      - KEYRING_GATEWAY_CONTRACT_ADDRESS=${KEYRING_GATEWAY_CONTRACT_ADDRESS}
+      - DELEGATE_CONTRACT_ADDRESS=${DELEGATE_CONTRACT_ADDRESS}
+      - NODE_ENV=production
+    volumes:
+      - logs:/app/logs
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  logs:
