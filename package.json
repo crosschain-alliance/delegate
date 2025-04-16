@@ -6,7 +6,8 @@
   "workspaces": [
     "contracts",
     "relayer",
-    "acurast_llm"
+    "acurast_llm",
+    "voter"
   ],
   "scripts": {
     "build": "turbo run build",
