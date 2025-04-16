@@ -1,0 +1,53 @@
+import mongoose, { Schema, Document } from 'mongoose';
+
+export interface IAgent extends Document {
+  address: string;
+  privateKey: string;
+  name: string;
+  active: boolean;
+  kmsAdapterAddress?: string;
+  userAddress?: string;  // Add user/voter address
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IAgentSpace extends Document {
+  agentId: mongoose.Types.ObjectId;
+  spaceId: string; // The space/DAO ID (e.g., "uniswap.eth")
+  defaultVote: number;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const AgentSchema = new Schema<IAgent>(
+  {
+    address: { type: String, required: true, unique: true },
+    privateKey: { type: String, required: true },
+    name: { type: String, required: true },
+    active: { type: Boolean, default: true },
+    kmsAdapterAddress: { type: String },
+    userAddress: { type: String }  // Add user/voter address
+  },
+  { timestamps: true }
+);
+
+const AgentSpaceSchema = new Schema<IAgentSpace>(
+  {
+    agentId: { 
+      type: Schema.Types.ObjectId, 
+      ref: 'Agent',
+      required: true 
+    },
+    spaceId: { type: String, required: true },
+    defaultVote: { type: Number, default: 1 },
+    active: { type: Boolean, default: true }
+  },
+  { timestamps: true }
+);
+
+// Create a compound index to ensure uniqueness of agent-space combinations
+AgentSpaceSchema.index({ agentId: 1, spaceId: 1 }, { unique: true });
+
+export const Agent = mongoose.model<IAgent>('Agent', AgentSchema);
+export const AgentSpace = mongoose.model<IAgentSpace>('AgentSpace', AgentSpaceSchema);
