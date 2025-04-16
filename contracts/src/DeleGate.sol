@@ -26,10 +26,10 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         _grantRole(SET_LLM_ADAPTER_ADMIN_ROLE, owner);
     }
 
-    function castGovernorVoteFor(
+    function castSpaceVoteFor(
         address voter,
         uint256 targetChainId,
-        address governor,
+        string calldata space,
         uint256 proposalId,
         string calldata vote,
         address module,
@@ -38,27 +38,24 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         // TODO: verify zkTLS proof (voteProof)
         Ethos memory ethos = _usersEthos[voter];
         _checkKmsAdapterExistence(voter);
-        _checkSubscription(targetChainId, governor, voter, module);
+        _checkSubscription(space, voter, module);
 
         string memory prompt = string(
             abi.encodePacked(
                 "given this vote: ",
                 vote,
-                ". Consider to return a result based on the following interests: ",
-                ethos.interests,
-                ", the following principles: ",
-                ethos.principles,
-                " and the following values: ",
-                ethos.values
+                ". Consider to return a result based on the following ethos: ",
+                ethos.ethos
             )
         );
 
         bytes32 promptId = ILLMAdapter(llmAdapter).ask(prompt);
+
         _pendingPromptData[promptId] = PendingPromptData({
             targetChainId: targetChainId,
             target: abi.encodePacked(module),
             voter: voter,
-            data: abi.encode(governor, proposalId)
+            data: abi.encode(space, proposalId)
         });
         emit StartVoteCast(voter, promptId);
     }
@@ -85,12 +82,10 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         PendingPromptData storage promptData = _pendingPromptData[promptId];
         require(promptData.targetChainId != 0, InvalidPromptData());
 
-        (address governor, uint256 proposalId) = abi.decode(promptData.data, (address, uint256));
+        (string memory space, uint256 proposalId) = abi.decode(promptData.data, (string, uint256));
 
         IKMSAdapter(_usersKmsAdapter[promptData.voter]).sign(
-            promptData.targetChainId,
-            promptData.target,
-            abi.encode(governor, proposalId, JsonParser.parseUintArray(answer)[0])
+            abi.encode(space, proposalId, JsonParser.parseUintArray(answer)[0])
         );
         emit EndVoteCast(promptData.voter, promptId);
         delete _pendingPromptData[promptId];
@@ -103,38 +98,43 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         emit LLMAdapterSet(newLlmAdapter);
     }
 
-    function setKmsAdapter(address kmsAdapter) external {
+    function setKmsAdapter(address kmsAdapter, address user) external {
         // NOTE: Each user must deploy their own `KmsAdapter` because the KeyringGateway needs to associate
         // a unique key with each user (msg.sender). In this context, the msg.sender within KeyringGateway.executeOperation
         // is referenced by the `KmsAdapter`.
-        _usersKmsAdapter[msg.sender] = kmsAdapter;
-        emit KMSAdapterSet(msg.sender, kmsAdapter);
+        _usersKmsAdapter[user] = kmsAdapter;
+        emit KMSAdapterSet(user, kmsAdapter);
     }
 
-    function subscribe(uint256 targetChainId, address dao, address module) external {
+    function subscribe(string calldata space, address module) external {
         address voter = msg.sender;
         Subscription[] storage subscriptions = _userSubscribtions[voter];
-        subscriptions.push(Subscription({targetChainId: targetChainId, dao: dao, module: module}));
-        bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, voter, module));
+        subscriptions.push(Subscription({space: space, module: module}));
+        bytes32 subscriptionId = keccak256(abi.encode(space, voter, module));
         _enabledSubscriptions[subscriptionId] = true;
-        emit Subscribed(targetChainId, dao, voter, module);
+        emit Subscribed(space, voter, module);
+    }
+
+    function getKmsAdapter(address user) external view returns (address) {
+        return _usersKmsAdapter[user];
+    }
+
+    function isSubscribed(string calldata space, address voter, address module) external view returns (bool) {
+        bytes32 subscriptionId = keccak256(abi.encode(space, voter, module));
+        return _enabledSubscriptions[subscriptionId];
     }
 
     function _checkKmsAdapterExistence(address user) internal view {
         require(_usersKmsAdapter[user] != address(0), KmsAdapterNotSet());
     }
 
-    function _checkSubscription(uint256 targetChainId, address dao, address voter, address module) internal view {
-        bytes32 subscriptionId = keccak256(abi.encode(targetChainId, dao, voter, module));
+    function _checkSubscription(string calldata space, address voter, address module) internal view {
+        bytes32 subscriptionId = keccak256(abi.encode(space, voter, module));
         require(_enabledSubscriptions[subscriptionId] == true, SubscriptionNotFound());
     }
 
     function _validateEthos(Ethos memory ethos) internal pure {
-        require(
-            abi.encodePacked(ethos.values).length > 0 && abi.encodePacked(ethos.principles).length > 0
-                && abi.encodePacked(ethos.interests).length > 0,
-            InvalidEthos()
-        );
+        require(abi.encodePacked(ethos.ethos).length > 0, InvalidEthos());
     }
 
     function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}

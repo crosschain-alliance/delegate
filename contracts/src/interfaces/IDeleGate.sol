@@ -3,9 +3,7 @@ pragma solidity ^0.8.28;
 
 interface IDeleGate {
     struct Ethos {
-        string interests;
-        string principles;
-        string values;
+        string ethos;
     }
 
     struct PendingPromptData {
@@ -16,8 +14,7 @@ interface IDeleGate {
     }
 
     struct Subscription {
-        uint256 targetChainId;
-        address dao;
+        string space;
         address module;
     }
 
@@ -26,17 +23,17 @@ interface IDeleGate {
     event LLMAdapterSet(address llmAdapter);
     event KMSAdapterSet(address indexed user, address kmsAdapter);
     event StartVoteCast(address indexed voter, bytes32 promptId);
-    event Subscribed(uint256 indexed targetChainId, address indexed dao, address indexed voter, address module);
+    event Subscribed(string indexed space, address indexed voter, address module);
 
     error KmsAdapterNotSet();
     error InvalidEthos();
     error InvalidPromptData();
     error SubscriptionNotFound();
 
-    function castGovernorVoteFor(
+    function castSpaceVoteFor(
         address voter,
         uint256 targetChainId,
-        address governor,
+        string calldata space,
         uint256 proposalId,
         string calldata vote,
         address keyringDeleGateModule,
@@ -53,7 +50,7 @@ interface IDeleGate {
 
     function setLlmAdapter(address newLlmAdapter) external;
 
-    function setKmsAdapter(address kmsAdapter) external;
+    function setKmsAdapter(address kmsAdapter, address user) external;
 
-    function subscribe(uint256 targetChainId, address dao, address module) external;
+    function subscribe(string calldata space, address module) external;
 }

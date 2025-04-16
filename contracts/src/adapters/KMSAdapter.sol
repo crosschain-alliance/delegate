@@ -18,7 +18,7 @@ contract KMSAdapter is IKMSAdapter {
         DELEGATE = delegate;
     }
 
-    function sign(uint256 targetChainId, bytes calldata target, bytes calldata data) external onlyDeleGate {
-        IKeyringGateway(KEYRING_GATEWAY).sign(uint64(targetChainId), target, data);
+    function sign(bytes calldata data) external onlyDeleGate {
+        IKeyringGateway(KEYRING_GATEWAY).sign(data);
     }
 }
