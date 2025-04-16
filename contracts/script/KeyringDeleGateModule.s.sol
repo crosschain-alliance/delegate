@@ -11,21 +11,15 @@ contract KeyringDeleGateModuleDeploy is Script {
     function run() public {
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
 
-        address proxy = Upgrades.deployUUPSProxy(
-            "KeyringDeleGateModule.sol",
-            abi.encodeCall(
-                KeyringDeleGateModule.initialize,
-                (
-                    vm.envAddress("OWNER"),
-                    vm.envAddress("GATEWAY"),
-                    vm.envAddress("SIGNER"),
-                    vm.envAddress("DELEGATE"),
-                    vm.envUint("CHAIN_ID")
-                )
-            )
+        KeyringDeleGateModule module = new KeyringDeleGateModule(
+            vm.envAddress("OWNER"),
+            vm.envAddress("GATEWAY"),
+            vm.envAddress("SIGNER"),
+            vm.envAddress("DELEGATE"),
+            vm.envUint("CHAIN_ID")
         );
 
-        console.log("KeyringDeleGateModule deployed to:", address(proxy));
+        console.log("KeyringDeleGateModule deployed to:", address(module));
 
         vm.stopBroadcast();
     }
