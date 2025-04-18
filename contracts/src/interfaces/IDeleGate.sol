@@ -24,6 +24,7 @@ interface IDeleGate {
     event KMSAdapterSet(address indexed user, address kmsAdapter);
     event StartVoteCast(address indexed voter, bytes32 promptId);
     event Subscribed(string indexed space, address indexed voter, address module);
+    event Unsubscribed(string space, address indexed user, address module);
 
     error KmsAdapterNotSet();
     error InvalidEthos();
@@ -52,5 +53,7 @@ interface IDeleGate {
 
     function setKmsAdapter(address kmsAdapter, address user) external;
 
-    function subscribe(string calldata space, address module) external;
+    function subscribe(string calldata space, address voter, address module) external;
+
+    function unsubscribe(string calldata space, address voter, address module) external;
 }

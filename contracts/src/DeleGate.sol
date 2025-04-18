@@ -9,6 +9,7 @@ import {ILLMAdapter} from "./interfaces/ILLMAdapter.sol";
 import {IKMSAdapter} from "./interfaces/IKMSAdapter.sol";
 
 contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
+    bytes32 public constant AGENT_ORCHESTRATOR = keccak256(abi.encodePacked("AGENT_ORCHESTRATOR"));
     bytes32 public constant SET_LLM_ADAPTER_ADMIN_ROLE = keccak256(abi.encodePacked("SET_LLM_ADAPTER_ADMIN_ROLE"));
     bytes32 public constant ON_ASWER_ROLE = keccak256(abi.encodePacked("ON_ASWER_ROLE"));
 
@@ -24,6 +25,7 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         __UUPSUpgradeable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
         _grantRole(SET_LLM_ADAPTER_ADMIN_ROLE, owner);
+        _grantRole(AGENT_ORCHESTRATOR, owner);
     }
 
     function castSpaceVoteFor(
@@ -78,6 +80,11 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         return _userSubscribtions[user];
     }
 
+    function isSubscribed(string calldata space, address voter, address module) external view returns (bool) {
+        bytes32 subscriptionId = keccak256(abi.encode(space, voter, module));
+        return _enabledSubscriptions[subscriptionId];
+    }
+
     function onAnswer(bytes32 promptId, string calldata answer) external onlyRole(ON_ASWER_ROLE) {
         PendingPromptData storage promptData = _pendingPromptData[promptId];
         require(promptData.targetChainId != 0, InvalidPromptData());
@@ -106,22 +113,42 @@ contract DeleGate is IDeleGate, UUPSUpgradeable, AccessControlEnumerableUpgradea
         emit KMSAdapterSet(user, kmsAdapter);
     }
 
-    function subscribe(string calldata space, address module) external {
-        address voter = msg.sender;
+    function subscribe(string calldata space, address voter, address module) external onlyRole(AGENT_ORCHESTRATOR) {
+        bytes32 subscriptionId = keccak256(abi.encode(space, voter, module));
+        require (_enabledSubscriptions[subscriptionId] == false, "Already subscribed");
         Subscription[] storage subscriptions = _userSubscribtions[voter];
         subscriptions.push(Subscription({space: space, module: module}));
-        bytes32 subscriptionId = keccak256(abi.encode(space, voter, module));
         _enabledSubscriptions[subscriptionId] = true;
         emit Subscribed(space, voter, module);
     }
 
-    function getKmsAdapter(address user) external view returns (address) {
-        return _usersKmsAdapter[user];
-    }
-
-    function isSubscribed(string calldata space, address voter, address module) external view returns (bool) {
+    function unsubscribe(string calldata space, address voter, address module) external onlyRole(AGENT_ORCHESTRATOR) {
         bytes32 subscriptionId = keccak256(abi.encode(space, voter, module));
-        return _enabledSubscriptions[subscriptionId];
+
+        // Check if subscription exists
+        require(_enabledSubscriptions[subscriptionId] == true, "Subscription not found");
+
+        // Remove from enabled subscriptions map
+        _enabledSubscriptions[subscriptionId] = false;
+
+        // Find and remove from voter's subscriptions array
+        Subscription[] storage subscriptions = _userSubscribtions[voter];
+        for (uint256 i = 0; i < subscriptions.length; i++) {
+            if (
+                keccak256(abi.encode(subscriptions[i].space)) == keccak256(abi.encode(space)) &&
+                subscriptions[i].module == module
+            ) {
+                // Replace the item to remove with the last item
+                if (i < subscriptions.length - 1) {
+                    subscriptions[i] = subscriptions[subscriptions.length - 1];
+                }
+                // Remove the last item
+                subscriptions.pop();
+                break;
+            }
+        }
+
+        emit Unsubscribed(space, voter, module);
     }
 
     function _checkKmsAdapterExistence(address user) internal view {
