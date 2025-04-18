@@ -5,6 +5,7 @@ import { hdKeyToAccount, privateKeyToAccount, HDKey} from 'viem/accounts';
 import { Agent, IAgent } from '../db/models';
 import logger from '../logger';
 import { PRIVATE_KEY, REL_CHAIN, RPC_URL } from '../config';
+import { KmsDeployError } from './errors';
 
 export const relayerAccount = privateKeyToAccount(PRIVATE_KEY as `0x${string}`);
 
@@ -85,10 +86,11 @@ export async function deployKmsAdapter(keyringGateway: Address, delegateContract
   } catch (error: unknown) {
     if (error instanceof Error) {
       console.error('Error deploying KMS Adapter:', error.message);
+      throw new KmsDeployError(error.name, error.message);
     } else {
       console.error('Unknown error deploying KMS Adapter:', error);
+      throw error;
     }
-    throw error;
   }
 }
 

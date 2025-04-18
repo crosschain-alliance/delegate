@@ -16,6 +16,9 @@ export const REL_CHAIN = process.env.REL_CHAIN;
 export const DELEGATE_CONTRACT_ADDRESS = process.env.DELEGATE_CONTRACT_ADDRESS as Address; 
 export const KEYRING_GATEWAY_CONTRACT_ADDRESS = process.env.KEYRING_GATEWAY_CONTRACT_ADDRESS as Address;
 
+console.log('Delegate contract address:', DELEGATE_CONTRACT_ADDRESS);
+console.log('Keyring gateway contract address:', KEYRING_GATEWAY_CONTRACT_ADDRESS);
+
 // Cron schedule for fetching proposals (default: every day at 8am)
 export const FETCH_SCHEDULE = process.env.FETCH_SCHEDULE || '0 8 * * *';
 

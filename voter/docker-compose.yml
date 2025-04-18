@@ -4,7 +4,7 @@ services:
   mongodb:
     image: mongo:6.0
     ports:
-      - "27018:27017"
+      - "27017:27017"
     volumes:
       - mongo_data:/data/db
     environment:
@@ -17,7 +17,10 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s  # Increased startup grace period
-    command: ["mongod", "--bind_ip_all"]  # Ensure MongoDB binds to all interfaces
+    # Modified command to reduce logging
+    command: ["mongod", "--bind_ip_all", "--quiet", "--logpath", "/dev/null"]
+    # Alternatively, you can use this to set specific log levels
+    # command: ["mongod", "--bind_ip_all", "--logpath", "/dev/null", "--syslog", "--verbosity", "0"]
 
   davos-voter-api:
     build:
