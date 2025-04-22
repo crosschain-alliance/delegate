@@ -494,6 +494,7 @@ app.get('/api/votes-simple', async (req, res) => {
       const agent = vote.agentId as unknown as IAgent;
       
       return {
+        voteId: vote._id,
         proposalId: vote.proposalId,
         agentAddress: agent.address,
         userAddress: agent.userAddress || null, // Add the userAddress
