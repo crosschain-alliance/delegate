@@ -25,8 +25,11 @@ export const FETCH_SCHEDULE = process.env.FETCH_SCHEDULE || '0 8 * * *';
 // How many hours before a proposal ends should we cast our vote
 export const VOTE_HOURS_BEFORE_END = parseInt(process.env.VOTE_HOURS_BEFORE_END || '6', 10);
 
+// How often to check for pending votes (in milliseconds)
+export const VOTE_POLLER_INTERVAL = parseInt(process.env.VOTE_POLLER_INTERVAL || '60000', 10);
+
 // MongoDB connection URI
-export const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/davos-voter';
+export const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://davos:voterpassword@mongodb:27017/davos-voter?authSource=admin';
 
 // API server port
 export const API_PORT = parseInt(process.env.API_PORT || '3000', 10);

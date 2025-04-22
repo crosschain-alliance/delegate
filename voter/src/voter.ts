@@ -1,8 +1,9 @@
 import { ethers } from 'ethers';
 import { SnapshotProposal } from './types';
-import { RPC_URL, VOTE_HOURS_BEFORE_END, DELEGATE_CONTRACT_ADDRESS } from './config';
-import { getAgentsForSpace } from './db/service';
+import { RPC_URL, VOTE_HOURS_BEFORE_END, DELEGATE_CONTRACT_ADDRESS, VOTE_POLLER_INTERVAL } from './config';
+import { getAgentsForSpace, scheduleVoteInDb, getPendingVotes, markVoteCompleted, markVoteFailed } from './db/service';
 import logger from './logger';
+import { IAgent } from './db/models';
 
 // ABI for the DeleGate contract's castSpaceVoteFor function
 const CONTRACT_ABI = [
@@ -57,13 +58,12 @@ export async function processProposalsForVoting(
             logger.info(`  Proposal has already ended, skipping for agent ${agent.name}`);
           }
         } else {
-          // Schedule the vote for the future
-          const delayMs = voteTimeMs - currentTimeMs;
-          const delayMinutes = Math.round(delayMs / (60 * 1000));
+          // Schedule the vote in the database for the future
+          const scheduledTime = new Date(voteTimeMs);
+          const delayMinutes = Math.round((voteTimeMs - currentTimeMs) / (60 * 1000));
           
           logger.info(`  Scheduling vote in ${delayMinutes} minutes for agent ${agent.name}`);
-          
-          scheduleVoteForProposal(proposal, agent.address, agent.privateKey, defaultVote, delayMs);
+          await scheduleVoteInDb(proposal, agent, defaultVote, scheduledTime);
         }
       }
     } catch (error) {
@@ -73,34 +73,66 @@ export async function processProposalsForVoting(
 }
 
 /**
- * Schedules a vote for a proposal at a specific time
+ * Starts a polling service to check for and execute pending votes
  */
-export function scheduleVoteForProposal(
-  proposal: SnapshotProposal,
-  agentAddress: string,
-  agentPrivateKey: string,
-  defaultVote: number,
-  delayMs: number
-): void {
-  const voteTimer = setTimeout(async () => {
+export function startVotePollingService(): void {
+  logger.info('Starting vote polling service');
+  
+  // Check for pending votes every minute (or configure as needed)
+  setInterval(async () => {
+    await executeScheduledVotes();
+  }, VOTE_POLLER_INTERVAL);
+  
+  // Execute immediately on startup
+  executeScheduledVotes().catch(err => {
+    logger.error(`Error on initial vote execution: ${err}`);
+  });
+}
+
+/**
+ * Executes all pending scheduled votes
+ */
+async function executeScheduledVotes(): Promise<void> {
+  const pendingVotes = await getPendingVotes();
+  
+  if (pendingVotes.length === 0) {
+    return;
+  }
+  
+  logger.info(`Found ${pendingVotes.length} pending votes to execute`);
+  
+  for (const vote of pendingVotes) {
     try {
-      logger.info(`Executing scheduled vote for proposal: ${proposal.title} (${proposal.id}) for agent ${agentAddress}`);
-      await castVote(proposal, agentAddress, agentPrivateKey, defaultVote);
+      const agent = vote.agentId as unknown as IAgent;
+      
+      logger.info(`Executing scheduled vote for proposal: ${vote.proposalTitle} (${vote.proposalId}) for agent ${agent.name}`);
+      
+      // Create a simplified proposal object with the necessary information
+      const proposal: SnapshotProposal = {
+        id: vote.proposalId,
+        title: vote.proposalTitle,
+        space: {
+          id: vote.spaceId,
+          name: vote.spaceId, // We don't store the space name in the scheduled vote
+        }
+      } as SnapshotProposal;
+      
+      await castVote(proposal, agent.address, agent.privateKey, vote.defaultVote);
+      await markVoteCompleted((vote._id as any).toString());
+      
+      logger.info(`Vote for proposal ${vote.proposalId} successfully executed`);
     } catch (error) {
-      logger.error(`Failed to execute scheduled vote: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to execute vote: ${errorMessage}`);
+      await markVoteFailed((vote._id as any).toString(), errorMessage);
     }
-  }, delayMs);
-  
-  // Prevent the timer from keeping the process alive if it's the only thing left
-  voteTimer.unref();
-  
-  logger.info(`Vote scheduled for ${proposal.title}, will execute at ${new Date(Date.now() + delayMs).toISOString()}`);
+  }
 }
 
 /**
  * Casts a vote on a proposal using the DeleGate contract
  */
-async function castVote(
+export async function castVote(
   proposal: SnapshotProposal,
   agentAddress: string,
   agentPrivateKey: string,

@@ -2,15 +2,13 @@ import cron from 'node-cron';
 import dotenv from 'dotenv';
 import { FETCH_SCHEDULE } from './config';
 import { startScheduler } from './scheduler';
-import { startApiServer } from './api/server';
+import { startVotePollingService } from './voter';
 import { initializeDatabase } from './db/service';
+import { startApiServer } from './api/server';
+import { MONGODB_URI, API_PORT } from './config';
 import logger from './logger';
 
 dotenv.config();
-
-// Get database connection string from environment
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/davos-voter';
-const API_PORT = parseInt(process.env.API_PORT || '3000', 10);
 
 /**
  * Main application entry point
@@ -19,18 +17,21 @@ async function main() {
   try {
     logger.info('Davos Snapshot Voter service starting...');
     
-    // Initialize the database
+    // Initialize database
     await initializeDatabase(MONGODB_URI);
     
-    // Start the API server
-    startApiServer(API_PORT);
-    
-    // Start the proposal scheduler
+    // Start the scheduled task to fetch proposals
     startScheduler();
     
-    logger.info('Service initialized successfully');
+    // Start the vote polling service
+    startVotePollingService();
+    
+    // Start API server
+    startApiServer(API_PORT);
+    
+    logger.info('Davos Voter service started successfully');
   } catch (error) {
-    logger.error(`Fatal error: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(`Failed to start service: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
 }

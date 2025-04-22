@@ -21,7 +21,7 @@ export function startScheduler(): void {
 /**
  * Main process to fetch proposals and schedule votes
  */
-async function runFetchAndSchedule(): Promise<void> {
+export async function runFetchAndSchedule(): Promise<void> {
   logger.info('Starting proposal fetch and vote scheduling process');
   
   // Get all active spaces from the database
@@ -46,15 +46,15 @@ async function runFetchAndSchedule(): Promise<void> {
       }
       
       // Filter proposals ending within the next 24 hours
-      const relevantProposals = filterProposalsEndingWithin24Hours(proposals);
+      // const relevantProposals = filterProposalsEndingWithin24Hours(proposals);
       
-      if (relevantProposals.length === 0) {
-        logger.info(`No proposals ending within 24 hours for ${spaceId}`);
-        continue;
-      }
+      // if (relevantProposals.length === 0) {
+      //   logger.info(`No proposals ending within 24 hours for ${spaceId}`);
+      //   continue;
+      // }
       
       // Process proposals for voting at the right time
-      await processProposalsForVoting(relevantProposals, spaceId);
+      await processProposalsForVoting(proposals, spaceId);
     } catch (error) {
       logger.error(`Error processing ${spaceId}: ${error instanceof Error ? error.message : String(error)}`);
     }

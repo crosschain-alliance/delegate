@@ -10,7 +10,13 @@ import {
   getAllActiveSpaces,
   isAgentInSpace,
   getAgentById,
-  getAgentByAddress
+  getAgentByAddress,
+  getScheduledVotes,
+  getScheduledVoteById,
+  countScheduledVotes,
+  getUpcomingVotes,
+  getVoteStatistics,
+  markVoteCompleted
 } from '../db/service';
 import logger from '../logger';
 import { deployKmsAdapter, getAgentAccountFromAddress, getAgentsByUserAddress, getKmsAddress, publicClient, walletClient } from '../lib/utils';
@@ -19,7 +25,13 @@ import DeleGateABI from '../artifacts/DeleGate.json';
 import { DELEGATE_CONTRACT_ADDRESS, KEYRING_GATEWAY_CONTRACT_ADDRESS } from '../config';
 import { IAgent } from '../db/models';
 import { KmsDeployError } from '../lib/errors';
-
+import { runFetchAndSchedule } from '../scheduler';
+import { 
+  processProposalsForVoting, 
+  startVotePollingService,
+  castVote 
+} from '../voter';
+import { SnapshotProposal } from '../types';
 
 const app = express();
 
@@ -87,7 +99,7 @@ app.get('/spaces/:spaceId/agents', async (req, res) => {
 app.post('/spaces/:spaceId/agents', async (req, res) => {
   try {
     const spaceId = req.params.spaceId;
-    const { agentId, existing } = req.body;
+    const { agentId, existing, defaultVote } = req.body;
     
     if (!agentId) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -143,13 +155,19 @@ app.post('/spaces/:spaceId/agents', async (req, res) => {
         });
       }
     }
-    const success = await addAgentToSpace(agentId, spaceId, 1);
+    const success = await addAgentToSpace(agentId, spaceId, defaultVote);
     
-    if (!success) {
-      return res.status(400).json({ error: 'Failed to add agent to space' });
+    if (success) {
+      // Trigger proposal fetching and scheduling for the new agent
+      console.log('Fetching and scheduling proposals for the new agent');
+      runFetchAndSchedule().catch(err => {
+        logger.error(`Failed to run scheduler after adding agent: ${err.message}`);
+      });
+
+      return res.status(201).json({ message: 'Agent added to space successfully', subscribeTx: hash });
     }
     
-    res.status(201).json({ message: 'Agent added to space successfully', subscribeTx: hash });
+    return res.status(400).json({ error: 'Failed to add agent to space' });
   } catch (error) {
     logger.error(`API error: ${error instanceof Error ? error.message : String(error)}`);
     res.status(500).json({ error: 'Internal server error' });
@@ -383,15 +401,21 @@ app.post('/agent', async (req, res) => {
     if (!agent) {
       return res.status(500).json({ error: 'Failed to create agent' });
     }
-      
-    res.status(201).json({
+
+    // Trigger proposal fetching and scheduling for the new agent
+    console.log('Fetching and scheduling proposals for the new agent');
+    runFetchAndSchedule().catch(err => {
+      logger.error(`Failed to run scheduler after adding agent: ${err.message}`);
+    });
+
+    return res.status(201).json({
       id: agent._id,
       address: agent.address,
       name: agent.name,
       kmsAdapterAddress: agent.kmsAdapterAddress,
       userAddress: agent.userAddress,
       existingAgent: false
-    });   
+    });
   } catch (error: unknown) {
     if (error instanceof KmsDeployError) {
       logger.error(`KMS deployment failed: ${error.message}, Hash: ${error.transactionHash}, Status: ${error.status}`);
@@ -410,6 +434,166 @@ app.post('/agent', async (req, res) => {
       success: false,
       error: errorMessage
     });
+  }
+});
+
+// Get all scheduled votes with filtering options
+app.get('/api/votes', async (req, res) => {
+  try {
+    const {
+      status,
+      spaceId,
+      agentId,
+      limit = 100,
+      skip = 0,
+      sortBy = 'scheduledTime',
+      sortDirection = 'asc'
+    } = req.query;
+    
+    const votes = await getScheduledVotes({
+      status: status as any,
+      spaceId: spaceId as string,
+      agentId: agentId as string,
+      limit: parseInt(limit as string || '100', 10),
+      skip: parseInt(skip as string || '0', 10),
+      sortBy: sortBy as string,
+      sortDirection: (sortDirection as 'asc' | 'desc') || 'asc'
+    });
+    
+    res.json(votes);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve scheduled votes' });
+  }
+});
+
+app.get('/api/votes-simple', async (req, res) => {
+  try {
+    const {
+      status,
+      spaceId,
+      agentId,
+      limit = 100,
+      skip = 0,
+      sortBy = 'scheduledTime',
+      sortDirection = 'asc'
+    } = req.query;
+    
+    const votes = await getScheduledVotes({
+      status: status as any,
+      spaceId: spaceId as string,
+      agentId: agentId as string,
+      limit: parseInt(limit as string || '100', 10),
+      skip: parseInt(skip as string || '0', 10),
+      sortBy: sortBy as string,
+      sortDirection: (sortDirection as 'asc' | 'desc') || 'asc'
+    });
+    
+    // Return simplified vote objects with just the requested fields
+    const simplifiedVotes = votes.map(vote => {
+      // Get the agent info properly typed
+      const agent = vote.agentId as unknown as IAgent;
+      
+      return {
+        proposalId: vote.proposalId,
+        agentAddress: agent.address,
+        userAddress: agent.userAddress || null, // Add the userAddress
+        scheduledTime: vote.scheduledTime
+      };
+    });
+    
+    res.json(simplifiedVotes);
+  } catch (error) {
+    logger.error(`API error retrieving simplified votes: ${error instanceof Error ? error.message : String(error)}`);
+    res.status(500).json({ error: 'Failed to retrieve simplified votes' });
+  }
+});
+
+// Get vote by ID
+app.get('/api/votes/:id', async (req, res) => {
+  try {
+    const vote = await getScheduledVoteById(req.params.id);
+    
+    if (!vote) {
+      return res.status(404).json({ error: 'Vote not found' });
+    }
+    
+    res.json(vote);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve scheduled vote' });
+  }
+});
+
+// Execute a specific vote now (override schedule)
+app.post('/api/votes/:id/execute', async (req, res) => {
+  try {
+    const voteId = req.params.id;
+    
+    // Get the scheduled vote
+    const vote = await getScheduledVoteById(voteId);
+    
+    if (!vote) {
+      return res.status(404).json({ error: 'Vote not found' });
+    }
+    
+    // Check if vote is already completed or failed
+    if (vote.status !== 'scheduled') {
+      return res.status(400).json({ 
+        error: 'Vote cannot be executed', 
+        status: vote.status,
+        message: `This vote has already been ${vote.status}`
+      });
+    }
+    
+    // Get agent information
+    const agent = vote.agentId as unknown as IAgent;
+    
+    logger.info(`Manually executing vote for proposal: ${vote.proposalTitle} (${vote.proposalId}) for agent ${agent.name}`);
+    
+    // Create a simplified proposal object with the necessary information
+    const proposal = {
+      id: vote.proposalId,
+      title: vote.proposalTitle,
+      space: {
+        id: vote.spaceId,
+        name: vote.spaceId
+      }
+    } as SnapshotProposal;
+    
+    // Execute the vote
+    await castVote(proposal, agent.address, agent.privateKey, vote.defaultVote);
+    await markVoteCompleted((vote._id as any).toString());
+    
+    logger.info(`Manually triggered vote for proposal ${vote.proposalId} successfully executed`);
+    
+    res.status(200).json({ 
+      success: true, 
+      message: `Vote for proposal ${vote.proposalId} executed successfully` 
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to execute vote: ${errorMessage}`);
+    res.status(500).json({ error: 'Failed to execute vote', message: errorMessage });
+  }
+});
+
+// Get vote statistics
+app.get('/api/votes/statistics', async (req, res) => {
+  try {
+    const stats = await getVoteStatistics();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve vote statistics' });
+  }
+});
+
+// Get upcoming votes
+app.get('/api/votes/upcoming', async (req, res) => {
+  try {
+    const hours = parseInt(req.query.hours as string || '24', 10);
+    const votes = await getUpcomingVotes(hours);
+    res.json(votes);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve upcoming votes' });
   }
 });
 

@@ -20,6 +20,20 @@ export interface IAgentSpace extends Document {
   updatedAt: Date;
 }
 
+export interface IScheduledVote extends Document {
+  proposalId: string;
+  proposalTitle: string;
+  spaceId: string;
+  agentId: mongoose.Types.ObjectId;
+  scheduledTime: Date;
+  defaultVote: number;
+  status: 'scheduled' | 'completed' | 'failed';
+  executedAt?: Date;
+  error?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 const AgentSchema = new Schema<IAgent>(
   {
     address: { type: String, required: true, unique: true },
@@ -49,5 +63,33 @@ const AgentSpaceSchema = new Schema<IAgentSpace>(
 // Create a compound index to ensure uniqueness of agent-space combinations
 AgentSpaceSchema.index({ agentId: 1, spaceId: 1 }, { unique: true });
 
+const ScheduledVoteSchema = new Schema<IScheduledVote>(
+  {
+    proposalId: { type: String, required: true },
+    proposalTitle: { type: String, required: true },
+    spaceId: { type: String, required: true },
+    agentId: { 
+      type: Schema.Types.ObjectId, 
+      ref: 'Agent',
+      required: true 
+    },
+    scheduledTime: { type: Date, required: true, index: true },
+    defaultVote: { type: Number, default: 1 },
+    status: { 
+      type: String, 
+      required: true, 
+      enum: ['scheduled', 'completed', 'failed'],
+      default: 'scheduled'
+    },
+    executedAt: { type: Date },
+    error: { type: String }
+  },
+  { timestamps: true }
+);
+
+// Create a compound index for faster querying
+ScheduledVoteSchema.index({ status: 1, scheduledTime: 1 });
+
 export const Agent = mongoose.model<IAgent>('Agent', AgentSchema);
 export const AgentSpace = mongoose.model<IAgentSpace>('AgentSpace', AgentSpaceSchema);
+export const ScheduledVote = mongoose.model<IScheduledVote>('ScheduledVote', ScheduledVoteSchema);

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
-import { Agent, AgentSpace, IAgent, IAgentSpace } from './models';
+import { Agent, AgentSpace, IAgent, IAgentSpace, ScheduledVote, IScheduledVote } from './models';
 import logger from '../logger';
+import { SnapshotProposal } from '../types';
 
 /**
  * Initialize the database connection
@@ -227,4 +228,260 @@ export function getDocumentId(doc: any): string {
   if (typeof doc._id === 'string') return doc._id;
   if (doc._id && typeof doc._id.toString === 'function') return doc._id.toString();
   return '';
+}
+
+/**
+ * Schedule a vote in the database
+ */
+export async function scheduleVoteInDb(
+  proposal: SnapshotProposal,
+  agent: IAgent,
+  defaultVote: number,
+  scheduledTime: Date
+): Promise<boolean> {
+  try {
+    await ScheduledVote.create({
+      proposalId: proposal.id,
+      proposalTitle: proposal.title,
+      spaceId: proposal.space.id,
+      agentId: agent._id,
+      scheduledTime,
+      defaultVote,
+      status: 'scheduled'
+    });
+    
+    logger.info(`Vote for proposal ${proposal.id} by agent ${agent.name} scheduled in database for ${scheduledTime.toISOString()}`);
+    return true;
+  } catch (error) {
+    logger.error(`Failed to schedule vote in database: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
+/**
+ * Get all votes that need to be executed now
+ */
+export async function getPendingVotes(): Promise<IScheduledVote[]> {
+  try {
+    const now = new Date();
+    const pendingVotes = await ScheduledVote.find({
+      status: 'scheduled',
+      scheduledTime: { $lte: now }
+    }).populate('agentId');
+    
+    return pendingVotes;
+  } catch (error) {
+    logger.error(`Failed to retrieve pending votes: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Mark a vote as completed
+ */
+export async function markVoteCompleted(voteId: string): Promise<boolean> {
+  try {
+    await ScheduledVote.findByIdAndUpdate(voteId, {
+      status: 'completed',
+      executedAt: new Date()
+    });
+    return true;
+  } catch (error) {
+    logger.error(`Failed to mark vote as completed: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
+/**
+ * Mark a vote as failed
+ */
+export async function markVoteFailed(voteId: string, error: string): Promise<boolean> {
+  try {
+    await ScheduledVote.findByIdAndUpdate(voteId, {
+      status: 'failed',
+      executedAt: new Date(),
+      error
+    });
+    return true;
+  } catch (error) {
+    logger.error(`Failed to mark vote as failed: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
+/**
+ * Get all scheduled votes
+ * @param options Optional filtering options
+ * @returns Array of scheduled votes
+ */
+export async function getScheduledVotes({
+  status,
+  spaceId,
+  agentId,
+  limit = 100,
+  skip = 0,
+  sortBy = 'scheduledTime',
+  sortDirection = 'asc'
+}: {
+  status?: 'scheduled' | 'completed' | 'failed';
+  spaceId?: string;
+  agentId?: string;
+  limit?: number;
+  skip?: number;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+} = {}): Promise<IScheduledVote[]> {
+  try {
+    const query: any = {};
+    
+    // Apply filters if provided
+    if (status) {
+      query.status = status;
+    }
+    
+    if (spaceId) {
+      query.spaceId = spaceId;
+    }
+    
+    if (agentId) {
+      query.agentId = agentId;
+    }
+    
+    // Create sort object
+    const sort: any = {};
+    sort[sortBy] = sortDirection === 'asc' ? 1 : -1;
+    
+    const votes = await ScheduledVote.find(query)
+      .populate('agentId')
+      .sort(sort)
+      .skip(skip)
+      .limit(limit);
+      
+    logger.info(`Retrieved ${votes.length} scheduled votes`);
+    return votes;
+  } catch (error) {
+    logger.error(`Failed to retrieve scheduled votes: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Get scheduled vote by ID
+ * @param voteId The ID of the scheduled vote
+ * @returns The scheduled vote or null if not found
+ */
+export async function getScheduledVoteById(voteId: string): Promise<IScheduledVote | null> {
+  try {
+    const vote = await ScheduledVote.findById(voteId).populate('agentId');
+    return vote;
+  } catch (error) {
+    logger.error(`Failed to retrieve scheduled vote ${voteId}: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Count scheduled votes with optional filters
+ */
+export async function countScheduledVotes({
+  status,
+  spaceId,
+  agentId
+}: {
+  status?: 'scheduled' | 'completed' | 'failed';
+  spaceId?: string;
+  agentId?: string;
+} = {}): Promise<number> {
+  try {
+    const query: any = {};
+    
+    if (status) {
+      query.status = status;
+    }
+    
+    if (spaceId) {
+      query.spaceId = spaceId;
+    }
+    
+    if (agentId) {
+      query.agentId = agentId;
+    }
+    
+    const count = await ScheduledVote.countDocuments(query);
+    return count;
+  } catch (error) {
+    logger.error(`Failed to count scheduled votes: ${error instanceof Error ? error.message : String(error)}`);
+    return 0;
+  }
+}
+
+/**
+ * Get upcoming votes scheduled in the next X hours
+ * @param hours Number of hours to look ahead (default: 24)
+ */
+export async function getUpcomingVotes(hours: number = 24): Promise<IScheduledVote[]> {
+  try {
+    const now = new Date();
+    const future = new Date(now.getTime() + hours * 60 * 60 * 1000);
+    
+    const votes = await ScheduledVote.find({
+      status: 'scheduled',
+      scheduledTime: {
+        $gte: now,
+        $lte: future
+      }
+    }).populate('agentId').sort({ scheduledTime: 1 });
+    
+    return votes;
+  } catch (error) {
+    logger.error(`Failed to retrieve upcoming votes: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Get statistics about scheduled votes
+ */
+export async function getVoteStatistics(): Promise<{
+  total: number;
+  scheduled: number;
+  completed: number;
+  failed: number;
+  upcomingIn24h: number;
+}> {
+  try {
+    // Get counts by status
+    const total = await ScheduledVote.countDocuments();
+    const scheduled = await ScheduledVote.countDocuments({ status: 'scheduled' });
+    const completed = await ScheduledVote.countDocuments({ status: 'completed' });
+    const failed = await ScheduledVote.countDocuments({ status: 'failed' });
+    
+    // Get upcoming votes count
+    const now = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const upcomingIn24h = await ScheduledVote.countDocuments({
+      status: 'scheduled',
+      scheduledTime: {
+        $gte: now,
+        $lte: in24h
+      }
+    });
+    
+    return {
+      total,
+      scheduled,
+      completed,
+      failed,
+      upcomingIn24h
+    };
+  } catch (error) {
+    logger.error(`Failed to get vote statistics: ${error instanceof Error ? error.message : String(error)}`);
+    return {
+      total: 0,
+      scheduled: 0,
+      completed: 0,
+      failed: 0,
+      upcomingIn24h: 0
+    };
+  }
 }
