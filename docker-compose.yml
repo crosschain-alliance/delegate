@@ -1,0 +1,19 @@
+version: '3.8'
+
+# Import existing compose files
+include:
+  - path: ./voter/docker-compose.yml
+  - path: ./relayer/docker-compose.yml
+
+# Additional services or overrides can be defined here
+# services:
+  # You can override settings from imported services here if needed
+  # For example:
+  # voter-api:
+  #   environment:
+  #     - ADDITIONAL_ENV=value
+
+# Shared volumes
+# volumes:
+#   mongo_data:
+#   voter_logs:
