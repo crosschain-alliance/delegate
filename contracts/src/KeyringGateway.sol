@@ -42,9 +42,7 @@ contract KeyringGateway is IKeyringGateway, UUPSUpgradeable, AccessControlEnumer
             voteType: "single-choice",
             choice: support
         });
-
-        msg.sender;
-
+        
         emit snapshotSignVote(msg.sender, vote);
     }
 
