@@ -30,13 +30,17 @@ import {
   castVote 
 } from '../voter';
 import { SnapshotProposal } from '../types';
+import { fetchOpenAIResponse } from '../ai-parser';
 
 const app = express();
 
 // Middleware
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+
+// Increase JSON payload size limit (adjust the limit as needed)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Log all requests
 app.use((req, res, next) => {
@@ -711,6 +715,40 @@ app.get('/api/votes/upcoming', async (req, res) => {
     res.json(votes);
   } catch (error) {
     res.status(500).json({ error: 'Failed to retrieve upcoming votes' });
+  }
+});
+
+// OpenAI processing endpoint
+app.post('/api/ai-request', async (req, res) => {
+  try {
+    const { directive, proposal } = req.body;
+    
+    // Validate required parameters
+    if (!directive || !proposal) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters',
+        details: 'Both directive and proposal are required'
+      });
+    }
+    
+    logger.info(`Processing AI analysis request for proposal`);
+    
+    // Call the OpenAI function
+    const response = await fetchOpenAIResponse(directive, proposal);
+    
+    return res.status(200).json({
+      success: true,
+      response
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error processing AI analysis: ${errorMessage}`);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to process request',
+      details: errorMessage
+    });
   }
 });
 
