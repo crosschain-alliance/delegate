@@ -26,9 +26,7 @@ import { DELEGATE_CONTRACT_ADDRESS, KEYRING_GATEWAY_CONTRACT_ADDRESS } from '../
 import { IAgent } from '../db/models';
 import { KmsDeployError } from '../lib/errors';
 import { runFetchAndSchedule } from '../scheduler';
-import { 
-  processProposalsForVoting, 
-  startVotePollingService,
+import {
   castVote 
 } from '../voter';
 import { SnapshotProposal } from '../types';
@@ -51,47 +49,323 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Get all agents
-app.get('/agents', async (req, res) => {
+// Init Agent registration
+app.post('/init-agent', async (req, res) => {
   try {
-    const agents = await getAllAgents();
-    res.status(200).json(agents.map(agent => ({
+    const { userAddress, spaceId } = req.body;
+    
+    // Validate that address is provided
+    if (!userAddress) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameter: userAddress'
+      });
+    }
+
+    if (!spaceId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameter: spaceId'
+      });
+    }
+
+    // Check if the user already has an active agent
+    const subscriptions = await publicClient.readContract({
+      address: DELEGATE_CONTRACT_ADDRESS,
+      abi: DeleGateABI.abi,
+      functionName: 'getUserSubscriptions',
+      args: [userAddress]
+    }) as Array<{space: string, module: string}>;
+
+    const matchingSubscription = subscriptions.length > 0 ? subscriptions.find(sub => sub.space === spaceId) : null;
+
+    if (matchingSubscription) {
+      const matchingAgent = await getAgentByAddress(matchingSubscription.module);
+      if (matchingAgent) {
+        logger.info(`Found already active Agent for Space ${spaceId}: ${matchingSubscription.module}`);
+        return res.status(200).json({
+          success: true,
+          predictedAgentAddress: matchingSubscription.module,
+          isMatchingSpace: true,
+          isActive: true
+        });
+      } else {
+        console.error(`Agent not found in DB for address ${matchingSubscription.module}`);
+      }
+    }
+
+    // Check if the user already has an agent
+    const existingAgent = await getAgentsByUserAddress(userAddress);
+
+    if (existingAgent && existingAgent.length > 0) {
+      // Filter agents to only those in the requested space
+      const agentsInSpace = await Promise.all(
+        existingAgent.map(async (agent) => {
+          // Use proper type assertion to help TypeScript understand the document structure
+          const agentDoc = agent as IAgent & { _id: { toString(): string } };
+          const inSpace = await isAgentInSpace(agentDoc._id.toString(), spaceId);
+          return inSpace ? agentDoc : null;
+        })
+      );
+
+      // Get the first agent that's in the space
+      const matchingAgent = agentsInSpace.filter(Boolean)[0];
+      
+      if (matchingAgent) {
+        return res.status(200).json({
+          success: true,
+          predictedAgentAddress: matchingAgent.address,
+          isMatchingSpace: true,
+          isActive: false
+        });
+      }
+      
+      // If no agent matches the space, return the first agent with a flag
+      return res.status(200).json({
+        success: true,
+        predictedAgentAddress: existingAgent[0].address,
+        isMatchingSpace: false,
+        isActive: false
+      });
+    }
+    
+    // Validate address format using Viem's Address type
+    try {
+      const predictedKMSAddress = await getKmsAddress(userAddress as Address);
+      console.info('Predicted KMS Address:', predictedKMSAddress);
+
+      const { address: predictedAgentAddress } = getAgentAccountFromAddress(predictedKMSAddress);
+      console.info('Predicted Agent Address:', predictedAgentAddress);
+      
+      return res.status(200).json({
+        success: true,
+        predictedAgentAddress,
+        isMatchingSpace: false,
+        isActive: false
+      });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid Ethereum address format'
+      });
+    }
+  } catch (error: any) {
+    logger.error(`API error predicting KMS address: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get or deploy KMS adapter
+app.post('/get-kms', async (req, res) => {
+  try {
+    // Extract parameters from request body
+    const { userAddress } = req.body as { userAddress?: Address };
+    
+    // Validate input
+    if (!userAddress) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameter: userAddress' 
+      });
+    }
+
+    // Check if KMS adapter already exists
+    let kmsAddress = await publicClient.readContract({
+      address: DELEGATE_CONTRACT_ADDRESS,
+      abi: DeleGateABI.abi,
+      functionName: 'getKmsAdapter',
+      args: [userAddress],
+    }) as Address;
+
+    console.info('KMS Address:', kmsAddress);
+
+    // Return data including whether deployment was needed
+    const result: {
+      success: boolean;
+      kmsAddress: string;
+      deploymentNeeded: boolean;
+      deployTx?: string;
+    } = {
+      success: true,
+      kmsAddress,
+      deploymentNeeded: false
+    };
+
+    // Deploy new KMS adapter if needed
+    if (!kmsAddress || kmsAddress === '0x0000000000000000000000000000000000000000') {
+      kmsAddress = await deployKmsAdapter(
+        KEYRING_GATEWAY_CONTRACT_ADDRESS, 
+        DELEGATE_CONTRACT_ADDRESS
+      );
+
+      logger.info(`Successfully deployed KMS Adapter: ${kmsAddress}`);
+
+      const setKmsHash = await walletClient.writeContract({
+        address: DELEGATE_CONTRACT_ADDRESS,
+        abi: DeleGateABI.abi,
+        functionName: 'setKmsAdapter',
+        args: [kmsAddress, userAddress],
+      });
+
+      const setKmsReceipt = await publicClient.waitForTransactionReceipt({ hash: setKmsHash });
+      
+      if (setKmsReceipt.status !== 'success') {
+        throw new KmsDeployError(setKmsHash, setKmsReceipt.status);
+      }
+
+      logger.info(`Successfully set KMS Adapter: ${setKmsReceipt.transactionHash} for voter ${userAddress}`);
+      
+      // Update result with deployment information
+      result.kmsAddress = kmsAddress;
+      result.deploymentNeeded = true;
+      result.deployTx = setKmsHash;
+    }
+
+    return res.status(200).json(result);
+  } catch (error: unknown) {
+    if (error instanceof KmsDeployError) {
+      logger.error(`KMS deployment failed: ${error.message}, Hash: ${error.transactionHash}, Status: ${error.status}`);
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+        transactionHash: error.transactionHash,
+        status: error.status
+      });
+    }
+    
+    // Handle other errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error getting/deploying KMS adapter: ${errorMessage}`);
+    return res.status(500).json({
+      success: false,
+      error: errorMessage
+    });
+  }
+});
+
+// Confirm Agent
+app.post('/finalize-agent', async (req, res) => {
+  try {
+    // Extract parameters from request body
+    const { userAddress, spaceId, kmsAddress } = req.body as { 
+      userAddress?: Address, 
+      spaceId?: string,
+      kmsAddress?: Address 
+    };
+    
+    // Validate input
+    if (!userAddress) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameter: userAddress' 
+      });
+    }
+
+    if (!spaceId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameter: spaceId' 
+      });
+    }
+
+    if (!kmsAddress) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameter: kmsAddress' 
+      });
+    }
+
+    // Check for existing subscriptions
+    const subscriptions = await publicClient.readContract({
+      address: DELEGATE_CONTRACT_ADDRESS,
+      abi: DeleGateABI.abi,
+      functionName: 'getUserSubscriptions',
+      args: [userAddress]
+    }) as Array<{space: string, module: string}>;
+
+    const matchingSubscription = subscriptions.length > 0 ? subscriptions.find(sub => sub.space === spaceId) : null;   
+
+    if (matchingSubscription) {
+      logger.info(`Found matching subscription for Space ${spaceId}: module=${matchingSubscription.module}`);
+      const agent = await getAgentByAddress(matchingSubscription.module);
+      if (agent) {
+        return res.status(200).json({
+          id: agent._id,
+          address: agent.address,
+          name: agent.name,
+          kmsAdapterAddress: agent.kmsAdapterAddress,
+          userAddress: agent.userAddress,
+          existingAgent: true
+        });
+      }
+      logger.warn(`Agent already exists for user ${userAddress} in space ${spaceId}, but not in DB`);
+    }
+
+    //FIXME filter by spaceId
+    const existingAgent = await getAgentsByUserAddress(userAddress);
+    if (existingAgent && existingAgent.length > 0) {
+      return res.status(200).json({
+        id: existingAgent[0]._id,
+        address: existingAgent[0].address,
+        name: existingAgent[0].name,
+        kmsAdapterAddress: existingAgent[0].kmsAdapterAddress,
+        userAddress: existingAgent[0].userAddress,
+        existingAgent: true
+      });
+    }
+
+    // Create the agent account from KMS address
+    const agentAccount = getAgentAccountFromAddress(kmsAddress);
+
+    // Get private key
+    const hdKey = agentAccount.getHdKey();
+    const privateKeyBytes = hdKey.privateKey;
+    if (!privateKeyBytes) {
+      throw new Error('Failed to retrieve private key bytes');
+    }
+    const agentPrivateKey = `0x${Buffer.from(privateKeyBytes).toString('hex')}`;
+
+    // Create the agent in the database
+    const agent = await addAgent(
+      agentAccount.address,
+      agentPrivateKey,
+      agentAccount.address, // name = address for now
+      kmsAddress,
+      userAddress
+    );
+
+    if (!agent) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to create agent' 
+      });
+    }
+
+    // Trigger proposal fetching and scheduling for the new agent
+    console.log('Fetching and scheduling proposals for the new agent');
+    runFetchAndSchedule().catch(err => {
+      logger.error(`Failed to run scheduler after adding agent: ${err.message}`);
+    });
+
+    return res.status(201).json({
       id: agent._id,
       address: agent.address,
-      name: agent.name
-    })));
-  } catch (error) {
-    logger.error(`API error: ${error instanceof Error ? error.message : String(error)}`);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get all spaces with active agents
-app.get('/spaces', async (req, res) => {
-  try {
-    const spaces = await getAllActiveSpaces();
-    res.status(200).json(spaces);
-  } catch (error) {
-    logger.error(`API error: ${error instanceof Error ? error.message : String(error)}`);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get agents for a specific space
-app.get('/spaces/:spaceId/agents', async (req, res) => {
-  try {
-    const spaceId = req.params.spaceId;
-    const agentsForSpace = await getAgentsForSpace(spaceId);
-    
-    res.status(200).json(agentsForSpace.map(item => ({
-      id: item.agent._id,
-      address: item.agent.address,
-      name: item.agent.name,
-      defaultVote: item.defaultVote
-    })));
-  } catch (error) {
-    logger.error(`API error: ${error instanceof Error ? error.message : String(error)}`);
-    res.status(500).json({ error: 'Internal server error' });
+      name: agent.name,
+      kmsAdapterAddress: agent.kmsAdapterAddress,
+      userAddress: agent.userAddress,
+      existingAgent: false
+    });
+  } catch (error: unknown) {
+    // Handle errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error finalizing agent: ${errorMessage}`);
+    return res.status(500).json({
+      success: false,
+      error: errorMessage
+    });
   }
 });
 
@@ -131,20 +405,22 @@ app.post('/spaces/:spaceId/agents', async (req, res) => {
     let hash;
 
     console.log('inSpace', inSpace)
+    let subscribeTx;
     if (!inSpace) {
+      // return res.status(400).json({ error: 'Agent is not existing or active' });
       try {
         // Call subscribe function on the delegate contract to ensure the agent is subscribed as a module
-        hash = await walletClient.writeContract({
+        subscribeTx = await walletClient.writeContract({
           address: DELEGATE_CONTRACT_ADDRESS,
           abi: DeleGateABI.abi,
           functionName: 'subscribe',
           args: [spaceId, agent.userAddress, agent.address],
         });
         
-        logger.info(`Subscribed agent ${agent.address} to Space ${spaceId}, tx: ${hash}`);
+        logger.info(`Subscribed agent ${agent.address} to Space ${spaceId}, tx: ${subscribeTx}`);
         
         // Wait for transaction to be mined
-        await publicClient.waitForTransactionReceipt({ hash });
+        await publicClient.waitForTransactionReceipt({ hash: subscribeTx });
       } catch (error) {
         logger.error(`Failed to subscribe agent: ${error instanceof Error ? error.message : String(error)}`);
         // Return the agent info anyway, even if subscription failed
@@ -164,7 +440,7 @@ app.post('/spaces/:spaceId/agents', async (req, res) => {
         logger.error(`Failed to run scheduler after adding agent: ${err.message}`);
       });
 
-      return res.status(201).json({ message: 'Agent added to space successfully', subscribeTx: hash });
+      return res.status(200).json({ message: 'Agent added to space successfully', subscribeTx: subscribeTx});
     }
     
     return res.status(400).json({ error: 'Failed to add agent to space' });
@@ -182,6 +458,7 @@ app.delete('/spaces/:spaceId/users/:userAddress', async (req, res) => {
     let userSubscriptions;
     let matchingAgent = null;
     let agentAddress;
+    let unsubscribeTx;
 
     try {
       // Call getUserSubscriptions function to get all user subscriptions
@@ -200,17 +477,17 @@ app.delete('/spaces/:spaceId/users/:userAddress', async (req, res) => {
         
         
         // Call unsubscribe function on the contract
-        const hash = await walletClient.writeContract({
+        const unsubscribeTx = await walletClient.writeContract({
           address: DELEGATE_CONTRACT_ADDRESS,
           abi: DeleGateABI.abi,
           functionName: 'unsubscribe',
           args: [spaceId, userAddress, matchingSubscription.module],
         });
         
-        logger.info(`Unsubscribed agent from Space ${spaceId}, tx: ${hash}`);
+        logger.info(`Unsubscribed agent from Space ${spaceId}, tx: ${unsubscribeTx}`);
         
         // Wait for transaction to be mined
-        await publicClient.waitForTransactionReceipt({ hash });
+        await publicClient.waitForTransactionReceipt({ hash: unsubscribeTx });
         const agent = await getAgentByAddress(matchingSubscription.module)
         const success = agent ? await removeAgentFromSpace((agent._id as any).toString(), spaceId) : null;
       } else {
@@ -220,220 +497,55 @@ app.delete('/spaces/:spaceId/users/:userAddress', async (req, res) => {
       logger.warn(`Failed to check or unsubscribe agent: ${error instanceof Error ? error.message : String(error)}`);
     }
     
-    res.status(200).json({ message: 'Agent removed from space successfully' });
+    res.status(200).json({ message: 'Agent removed from space successfully', unsubscribeTx: unsubscribeTx });
   } catch (error) {
     logger.error(`API error: ${error instanceof Error ? error.message : String(error)}`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// predict-kms-address endpoint
-app.post('/predict-agent-address', async (req, res) => {
+// Get all agents
+app.get('/agents', async (req, res) => {
   try {
-    const { userAddress, spaceId } = req.body;
-    
-    // Validate that address is provided
-    if (!userAddress) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required parameter: userAddress'
-      });
-    }
-
-    if (!spaceId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required parameter: spaceId'
-      });
-    }
-
-    const existingAgent = await getAgentsByUserAddress(userAddress);
-
-    if (existingAgent && existingAgent.length > 0) {
-      // Filter agents to only those in the requested space
-      const agentsInSpace = await Promise.all(
-        existingAgent.map(async (agent) => {
-          // Use proper type assertion to help TypeScript understand the document structure
-          const agentDoc = agent as IAgent & { _id: { toString(): string } };
-          const inSpace = await isAgentInSpace(agentDoc._id.toString(), spaceId);
-          return inSpace ? agentDoc : null;
-        })
-      );
-
-      // Get the first agent that's in the space
-      const matchingAgent = agentsInSpace.filter(Boolean)[0];
-      
-      if (matchingAgent) {
-        return res.status(200).json({
-          success: true,
-          predictedAgentAddress: matchingAgent.address,
-          matchingSpace: true
-        });
-      }
-      
-      // If no agent matches the space, return the first agent with a flag
-      return res.status(200).json({
-        success: true,
-        predictedAgentAddress: existingAgent[0].address,
-        matchingSpace: false
-      });
-    }
-    
-    // Validate address format using Viem's Address type
-    try {
-      const predictedKMSAddress = await getKmsAddress(userAddress as Address);
-
-      const { address: predictedAgentAddress } = getAgentAccountFromAddress(predictedKMSAddress);
-      
-      return res.status(200).json({
-        success: true,
-        predictedAgentAddress
-      });
-    } catch (error) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid Ethereum address format'
-      });
-    }
-  } catch (error: any) {
-    logger.error(`API error predicting KMS address: ${error.message}`);
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    const agents = await getAllAgents();
+    res.status(200).json(agents.map(agent => ({
+      id: agent._id,
+      address: agent.address,
+      userAddress: agent.userAddress,
+      active: agent.active,
+    })));
+  } catch (error) {
+    logger.error(`API error: ${error instanceof Error ? error.message : String(error)}`);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Setup API endpoint
-app.post('/agent', async (req, res) => {
+// Get all spaces with active agents
+app.get('/spaces', async (req, res) => {
   try {
-    // Extract parameters from request body
-    const { userAddress, spaceId } = req.body as { userAddress?: Address, spaceId?: string };
+    const spaces = await getAllActiveSpaces();
+    res.status(200).json(spaces);
+  } catch (error) {
+    logger.error(`API error: ${error instanceof Error ? error.message : String(error)}`);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get agents for a specific space
+app.get('/spaces/:spaceId/agents', async (req, res) => {
+  try {
+    const spaceId = req.params.spaceId;
+    const agentsForSpace = await getAgentsForSpace(spaceId);
     
-    // Validate input
-    if (!userAddress) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing required parameters: userAddress' 
-      });
-    }
-
-    if (!spaceId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing required parameters: spaceId' 
-      });
-    }
-
-    const subscriptions = await publicClient.readContract({
-      address: DELEGATE_CONTRACT_ADDRESS,
-      abi: DeleGateABI.abi,
-      functionName: 'getUserSubscriptions',
-      args: [userAddress]
-    }) as Array<{space: string, module: string}>;
-
-    const matchingSubscription = subscriptions.length > 0 ? subscriptions.find(sub => sub.space === spaceId) : null;   
-
-    if (matchingSubscription) {
-      logger.info(`Found matching subscription for Space ${spaceId}: module=${matchingSubscription.module}`);
-      const agent = await getAgentByAddress(matchingSubscription.module);
-      if (agent) {
-        res.status(200).json({
-          id: agent._id,
-          address: agent.address,
-          name: agent.name,
-          kmsAdapterAddress: agent.kmsAdapterAddress,
-          userAddress: agent.userAddress,
-          existingAgent: true
-        });
-      }
-      console.error(`Agent already exists for user ${userAddress} in space ${spaceId}, but not in DB`);
-    }
-
-    let kmsAddress = await publicClient.readContract({
-      address: DELEGATE_CONTRACT_ADDRESS,
-      abi: DeleGateABI.abi,
-      functionName: 'getKmsAdapter',
-      args: [userAddress],
-    }) as Address;
-
-    if (!kmsAddress) {
-      kmsAddress = await deployKmsAdapter(
-        KEYRING_GATEWAY_CONTRACT_ADDRESS, 
-        DELEGATE_CONTRACT_ADDRESS
-      );
-
-      logger.info(`Successfully deployed KMS Adapter: ${kmsAddress}`);
-
-      const setKmsHash = await walletClient.writeContract({
-        address: DELEGATE_CONTRACT_ADDRESS,
-        abi: DeleGateABI.abi,
-        functionName: 'setKmsAdapter',
-        args: [kmsAddress, userAddress],
-      });
-
-      const setKmsReceipt = await publicClient.waitForTransactionReceipt({ hash: setKmsHash });
-      
-      if (setKmsReceipt.status !== 'success') {
-        throw new KmsDeployError(setKmsHash, setKmsReceipt.status);
-      }
-
-      logger.info(`Successfully set KMS Adapter: ${setKmsReceipt.transactionHash} for voter ${userAddress}`);
-    }
-
-    const agentAccount = getAgentAccountFromAddress(kmsAddress);
-
-    const hdKey = agentAccount.getHdKey();
-    const privateKeyBytes = hdKey.privateKey;
-    if (!privateKeyBytes) {
-      throw new Error('Failed to retrieve private key bytes');
-    }
-    const AgentPrivateKey = `0x${Buffer.from(privateKeyBytes).toString('hex')}`;
-
-    const agent = await addAgent(
-      agentAccount.address,
-      AgentPrivateKey,
-      agentAccount.address,
-      kmsAddress,  // KMS adapter address
-      userAddress  // User address
-    );
-
-    if (!agent) {
-      return res.status(500).json({ error: 'Failed to create agent' });
-    }
-
-    // Trigger proposal fetching and scheduling for the new agent
-    console.log('Fetching and scheduling proposals for the new agent');
-    runFetchAndSchedule().catch(err => {
-      logger.error(`Failed to run scheduler after adding agent: ${err.message}`);
-    });
-
-    return res.status(201).json({
-      id: agent._id,
-      address: agent.address,
-      name: agent.name,
-      kmsAdapterAddress: agent.kmsAdapterAddress,
-      userAddress: agent.userAddress,
-      existingAgent: false
-    });
-  } catch (error: unknown) {
-    if (error instanceof KmsDeployError) {
-      logger.error(`KMS deployment failed: ${error.message}, Hash: ${error.transactionHash}, Status: ${error.status}`);
-      return res.status(500).json({
-        success: false,
-        error: error.message,
-        transactionHash: error.transactionHash,
-        status: error.status
-      });
-    }
-    
-    // Handle other errors
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Error adding Agent: ${errorMessage}`);
-    return res.status(500).json({
-      success: false,
-      error: errorMessage
-    });
+    res.status(200).json(agentsForSpace.map(item => ({
+      id: item.agent._id,
+      address: item.agent.address,
+      name: item.agent.name,
+      defaultVote: item.defaultVote
+    })));
+  } catch (error) {
+    logger.error(`API error: ${error instanceof Error ? error.message : String(error)}`);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -559,9 +671,13 @@ app.post('/api/votes/:id/execute', async (req, res) => {
         name: vote.spaceId
       }
     } as SnapshotProposal;
+
+    if (!agent.userAddress) {
+      throw new Error(`Agent not found for vote ${vote._id}`);
+    }
     
     // Execute the vote
-    await castVote(proposal, agent.address, agent.privateKey, vote.defaultVote);
+    await castVote(proposal, agent.address, agent.userAddress);
     await markVoteCompleted((vote._id as any).toString());
     
     logger.info(`Manually triggered vote for proposal ${vote.proposalId} successfully executed`);
@@ -604,3 +720,47 @@ export function startApiServer(port: number = 3000): void {
     logger.info(`API server listening on port ${port}`);
   });
 }
+
+// Manual snapshot vote submission
+app.post('/api/snapshot-vote', async (req, res) => {
+  try {
+    const { kmsAdapterAddress, space, proposal, type = 'single-choice', choice } = req.body;
+    
+    if (!kmsAdapterAddress || !space || !proposal || choice === undefined) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameters. Required: agentId, space, proposal, choice' 
+      });
+    }
+    
+    // Import the snapshotVote function
+    const { snapshotVote } = await import('../snapshot_executor');
+    
+    // Format the vote data
+    const voteData = {
+      space,
+      proposal,
+      type,
+      choice
+    };
+    
+    logger.info(`Manually triggering snapshot vote: ${JSON.stringify(voteData)}`);
+    
+    // Call the snapshot vote function
+    await snapshotVote(kmsAdapterAddress as Address, voteData);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Vote submission initiated',
+      vote: voteData
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to submit snapshot vote: ${errorMessage}`);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to submit vote', 
+      message: errorMessage 
+    });
+  }
+});

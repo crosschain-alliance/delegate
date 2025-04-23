@@ -7,6 +7,7 @@ import { initializeDatabase } from './db/service';
 import { startApiServer } from './api/server';
 import { MONGODB_URI, API_PORT } from './config';
 import logger from './logger';
+import { watchSnapshotEvents, stopSnapshotEvents } from './snapshot_executor';
 
 dotenv.config();
 
@@ -29,6 +30,9 @@ async function main() {
     // Start API server
     startApiServer(API_PORT);
     
+    // Start snapshot executor to watch for on-chain events
+    await watchSnapshotEvents();
+    
     logger.info('Davos Voter service started successfully');
   } catch (error) {
     logger.error(`Failed to start service: ${error instanceof Error ? error.message : String(error)}`);
@@ -42,11 +46,13 @@ main();
 // Handle termination signals
 process.on('SIGINT', () => {
   logger.info('Received SIGINT. Shutting down gracefully...');
+  stopSnapshotEvents();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   logger.info('Received SIGTERM. Shutting down gracefully...');
+  stopSnapshotEvents();
   process.exit(0);
 });
 

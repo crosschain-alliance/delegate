@@ -200,6 +200,25 @@ export async function getAgentsByUserAddress(userAddress: string): Promise<IAgen
 }
 
 /**
+ * Get agent by its KMS adapter address
+ * @param kmsAdapterAddress The Ethereum address of the KMS adapter
+ * @returns The agent document or null if not found
+ */
+export async function getAgentByKmsAddress(kmsAdapterAddress: string): Promise<IAgent | null> {
+  try {
+    const agent = await Agent.findOne({ kmsAdapterAddress, active: true });
+    if (!agent) {
+      logger.warn(`Agent with KMS adapter address ${kmsAdapterAddress} not found or not active`);
+      return null;
+    }
+    return agent;
+  } catch (error) {
+    logger.error(`Failed to get agent by KMS address: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/**
  * Check if an agent is associated with a specific space
  * @param agentId The ID of the agent
  * @param spaceId The ID of the space
@@ -236,7 +255,6 @@ export function getDocumentId(doc: any): string {
 export async function scheduleVoteInDb(
   proposal: SnapshotProposal,
   agent: IAgent,
-  defaultVote: number,
   scheduledTime: Date
 ): Promise<boolean> {
   try {
@@ -246,7 +264,6 @@ export async function scheduleVoteInDb(
       spaceId: proposal.space.id,
       agentId: agent._id,
       scheduledTime,
-      defaultVote,
       status: 'scheduled'
     });
     

@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { FETCH_SCHEDULE } from './config';
-import { fetchProposals, filterProposalsEndingWithin24Hours } from './fetcher';
+import { fetchProposals } from './fetcher';
 import { processProposalsForVoting } from './voter';
 import { getAllActiveSpaces } from './db/service';
 import logger from './logger';

@@ -21,7 +21,6 @@ async function main() {
           logger.info(`  Space: ${vote.spaceId}`);
           logger.info(`  Agent: ${agent.name}`);
           logger.info(`  Scheduled: ${vote.scheduledTime.toISOString()}`);
-          logger.info(`  Vote choice: ${vote.defaultVote}`);
           logger.info('---');
         });
         break;

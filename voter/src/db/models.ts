@@ -26,7 +26,6 @@ export interface IScheduledVote extends Document {
   spaceId: string;
   agentId: mongoose.Types.ObjectId;
   scheduledTime: Date;
-  defaultVote: number;
   status: 'scheduled' | 'completed' | 'failed';
   executedAt?: Date;
   error?: string;
@@ -74,7 +73,6 @@ const ScheduledVoteSchema = new Schema<IScheduledVote>(
       required: true 
     },
     scheduledTime: { type: Date, required: true, index: true },
-    defaultVote: { type: Number, default: 1 },
     status: { 
       type: String, 
       required: true, 

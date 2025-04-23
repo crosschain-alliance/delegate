@@ -94,30 +94,30 @@ export async function fetchProposals(spaceId: string): Promise<SnapshotProposal[
 /**
  * Filters proposals that will end within the next 24 hours from now
  */
-export function filterProposalsEndingWithin24Hours(
-  proposals: SnapshotProposal[]
-): SnapshotProposal[] {
-  // Current time in seconds
-  const currentTimeSeconds = Math.floor(Date.now() / 1000);
+// export function filterProposalsEndingWithin24Hours(
+//   proposals: SnapshotProposal[]
+// ): SnapshotProposal[] {
+//   // Current time in seconds
+//   const currentTimeSeconds = Math.floor(Date.now() / 1000);
   
-  // 24 hours from now in seconds (24 * 60 * 60 = 86400 seconds)
-  const twentyFourHoursLaterSeconds = currentTimeSeconds + 86400;
+//   // 24 hours from now in seconds (24 * 60 * 60 = 86400 seconds)
+//   const twentyFourHoursLaterSeconds = currentTimeSeconds + 86400;
   
-  // Log filtering parameters
-  logger.info(`Filtering proposals ending within 24 hours: current time=${new Date(currentTimeSeconds * 1000).toISOString()}, 24h later=${new Date(twentyFourHoursLaterSeconds * 1000).toISOString()}`);
+//   // Log filtering parameters
+//   logger.info(`Filtering proposals ending within 24 hours: current time=${new Date(currentTimeSeconds * 1000).toISOString()}, 24h later=${new Date(twentyFourHoursLaterSeconds * 1000).toISOString()}`);
   
-  const filteredProposals = proposals.filter(proposal => 
-    proposal.end >= currentTimeSeconds && // Not yet ended
-    proposal.end <= twentyFourHoursLaterSeconds // Will end within 24 hours
-  );
+//   const filteredProposals = proposals.filter(proposal => 
+//     proposal.end >= currentTimeSeconds && // Not yet ended
+//     proposal.end <= twentyFourHoursLaterSeconds // Will end within 24 hours
+//   );
   
-  // Log filtered proposals
-  logger.info(`After filtering, ${filteredProposals.length} proposals will end within the next 24 hours`);
-  filteredProposals.forEach((p: SnapshotProposal) => {
-    const endDate = new Date(p.end * 1000).toISOString();
-    const hoursUntilEnd = Math.round((p.end - currentTimeSeconds) / 3600 * 10) / 10;
-    logger.info(`- SELECTED: ID: ${p.id}, Title: ${p.title}, End time: ${endDate} (in ${hoursUntilEnd} hours), Space: ${p.space.id}`);
-  });
+//   // Log filtered proposals
+//   logger.info(`After filtering, ${filteredProposals.length} proposals will end within the next 24 hours`);
+//   filteredProposals.forEach((p: SnapshotProposal) => {
+//     const endDate = new Date(p.end * 1000).toISOString();
+//     const hoursUntilEnd = Math.round((p.end - currentTimeSeconds) / 3600 * 10) / 10;
+//     logger.info(`- SELECTED: ID: ${p.id}, Title: ${p.title}, End time: ${endDate} (in ${hoursUntilEnd} hours), Space: ${p.space.id}`);
+//   });
   
-  return filteredProposals;
-}
+//   return filteredProposals;
+// }

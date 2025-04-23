@@ -1,17 +1,11 @@
-import { ethers } from 'ethers';
 import { SnapshotProposal } from './types';
 import { RPC_URL, VOTE_HOURS_BEFORE_END, DELEGATE_CONTRACT_ADDRESS, VOTE_POLLER_INTERVAL } from './config';
 import { getAgentsForSpace, scheduleVoteInDb, getPendingVotes, markVoteCompleted, markVoteFailed } from './db/service';
 import logger from './logger';
 import { IAgent } from './db/models';
-
-// ABI for the DeleGate contract's castSpaceVoteFor function
-const CONTRACT_ABI = [
-  "function castSpaceVoteFor(address voter, uint256 targetChainId, string calldata space, uint256 proposalId, string calldata vote, address module, bytes calldata voteProof) external"
-];
-
-// Module address for the DeleGate contract
-const MODULE_ADDRESS = "0x089766e1b6aa704582959aE3B0B647738367911e";
+import { publicClient, walletClient } from './lib/utils';
+import { sepolia } from 'viem/chains';
+import DeleGateABI from './artifacts/DeleGate.json';
 
 /**
  * Processes proposals and schedules votes at the appropriate time
@@ -48,12 +42,12 @@ export async function processProposalsForVoting(
       logger.info(`  Target vote time: ${voteTimeFormatted}`);
       
       // For each agent, schedule a vote
-      for (const { agent, defaultVote } of agentsForSpace) {
+      for (const { agent } of agentsForSpace) {
         if (voteTimeMs <= currentTimeMs) {
           // If vote time has already passed but proposal hasn't ended, vote now
           if (currentTimeMs < proposalEndTimeMs) {
             logger.info(`  Vote time already passed, voting immediately for agent ${agent.name}`);
-            await castVote(proposal, agent.address, agent.privateKey, defaultVote);
+            await castVote(proposal, agent.address, agent.privateKey);
           } else {
             logger.info(`  Proposal has already ended, skipping for agent ${agent.name}`);
           }
@@ -63,7 +57,7 @@ export async function processProposalsForVoting(
           const delayMinutes = Math.round((voteTimeMs - currentTimeMs) / (60 * 1000));
           
           logger.info(`  Scheduling vote in ${delayMinutes} minutes for agent ${agent.name}`);
-          await scheduleVoteInDb(proposal, agent, defaultVote, scheduledTime);
+          await scheduleVoteInDb(proposal, agent, scheduledTime);
         }
       }
     } catch (error) {
@@ -104,6 +98,10 @@ async function executeScheduledVotes(): Promise<void> {
   for (const vote of pendingVotes) {
     try {
       const agent = vote.agentId as unknown as IAgent;
+
+      if (!agent.userAddress) {
+        throw new Error(`Agent not found for vote ${vote._id}`);
+      }
       
       logger.info(`Executing scheduled vote for proposal: ${vote.proposalTitle} (${vote.proposalId}) for agent ${agent.name}`);
       
@@ -117,7 +115,7 @@ async function executeScheduledVotes(): Promise<void> {
         }
       } as SnapshotProposal;
       
-      await castVote(proposal, agent.address, agent.privateKey, vote.defaultVote);
+      await castVote(proposal, agent.address, agent.userAddress);
       await markVoteCompleted((vote._id as any).toString());
       
       logger.info(`Vote for proposal ${vote.proposalId} successfully executed`);
@@ -135,43 +133,35 @@ async function executeScheduledVotes(): Promise<void> {
 export async function castVote(
   proposal: SnapshotProposal,
   agentAddress: string,
-  agentPrivateKey: string,
-  defaultVote: number
+  userAddress: string,
 ): Promise<void> {
   try {
-    const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const wallet = new ethers.Wallet(agentPrivateKey, provider);
-    const contract = new ethers.Contract(DELEGATE_CONTRACT_ADDRESS, CONTRACT_ABI, wallet);
+
+
+    logger.info(`Casting vote for proposal: ${proposal.title} (${proposal.id}) with agent ${agentAddress} for the user ${userAddress}`);
+
+    console.info(`Agent address: ${agentAddress}`);
+    console.info(`User address: ${userAddress}`);
+
+    const hash = await walletClient.writeContract({
+      address: DELEGATE_CONTRACT_ADDRESS,
+      abi: DeleGateABI.abi,
+      functionName: 'castSpaceVoteFor',
+      args: [
+        userAddress,
+        sepolia.id,
+        proposal.space.id,
+        BigInt(proposal.id),
+        proposal.body,
+        agentAddress,
+        "0x" // voteProof (empty for now) 
+      ],
+    });
+
     
-    logger.info(`Casting vote for proposal: ${proposal.title} (${proposal.id}) with agent ${agentAddress}`);
-    
-    // Get the chain ID from the provider
-    const network = await provider.getNetwork();
-    const chainId = Number(network.chainId);
-    
-    // Parameters for castSpaceVoteFor
-    const voter = agentAddress; // The voter's address 
-    const targetChainId = chainId; // Current chain ID
-    const space = proposal.space.id; // The space ID (e.g., "uniswap.eth")
-    const proposalId = BigInt(proposal.id); // The proposal ID
-    const vote = defaultVote.toString(); // The vote choice as a string
-    const module = MODULE_ADDRESS; // Delegate module address
-    const voteProof = "0x"; // Empty bytes for now as placeholder for vote proof
-    
-    // Submit the vote via the DeleGate contract
-    const tx = await contract.castSpaceVoteFor(
-      voter,
-      targetChainId,
-      space,
-      proposalId,
-      vote,
-      module,
-      voteProof
-    );
-    
-    logger.info(`Vote transaction submitted: ${tx.hash}`);
-    const receipt = await tx.wait();
-    logger.info(`Vote transaction confirmed in block ${receipt.blockNumber}: ${tx.hash}`);
+    logger.info(`Vote transaction submitted: ${hash}`);
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: hash });
+    logger.info(`Vote transaction confirmed in block ${receipt.blockNumber}: ${hash}`);
   } catch (error) {
     logger.error(`Vote failed for proposal ${proposal.id}: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
