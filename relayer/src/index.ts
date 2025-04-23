@@ -1,39 +1,19 @@
 import { createPublicClient, createWalletClient, http } from 'viem';
-import { foundry, sepolia, mainnet, arbitrum, Chain } from 'viem/chains';
+import { foundry, sepolia, mainnet, arbitrum } from 'viem/chains';
 import LLMAdapterABI from '../artifacts/LLMAdapter.json';
 // import { parseQuery } from './llmParsers/acurastParser';
 import { parseQuery } from './llmParsers/openAiParser';
 import { privateKeyToAccount } from 'viem/accounts';
 import 'dotenv/config';
 
-if (!process.env.CONTRACT_ADDRESS || !process.env.PRIVATE_KEY || !process.env.RPC_URL || !process.env.REL_CHAIN) {
+if (!process.env.LLM_ADAPTER_ADDRESS || !process.env.PRIVATE_KEY || !process.env.RPC_URL || !process.env.REL_CHAIN) {
   throw new Error('Missing environment variables. Check .env file');
 }
-
-const monad: Chain = {
-  id: 10143,
-  name: 'Monad',
-  nativeCurrency: {
-    name: 'Monad',
-    symbol: 'MON',
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: ['https://testnet-rpc.monad.xyz'],
-    },
-  },
-  blockExplorers: {
-    default: { name: 'Monad Explorer', url: 'https://testnet.monadexplorer.com/' },
-  },
-  testnet: true,
-};
 
 const chains = {
   sepolia,
   mainnet,
   arbitrum,
-  monad,
   foundry,
 };
 
@@ -42,7 +22,7 @@ if (!chain) {
   throw new Error(`Invalid chain: ${process.env.CHAIN}`);
 }
 
-const contractAddress = process.env.CONTRACT_ADDRESS as `0x${string}`;
+const contractAddress = process.env.LLM_ADAPTER_ADDRESS as `0x${string}`;
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
 const rpcUrl = process.env.RPC_URL;
 
@@ -57,12 +37,12 @@ const walletClient = createWalletClient({
   account,
 });
 
-const abi = LLMAdapterABI.abi;
-
 export const respond = async (promptId: any, response: string) => {
+  console.log('Responding to promptId:', promptId);
+  console.log('Response:', response);
   const { request } = await publicClient.simulateContract({
     address: contractAddress,
-    abi,
+    abi: LLMAdapterABI.abi,
     functionName: 'respond',
     args: [promptId, response, '0x'],
   })
@@ -95,7 +75,7 @@ const main = async () => {
   
   const unwatch = publicClient.watchContractEvent({
     address: contractAddress,
-    abi,
+    abi: LLMAdapterABI.abi,
     eventName: 'Asked',
     onLogs: logs => {
       logs.forEach(log => {
@@ -109,7 +89,7 @@ const main = async () => {
 
   const unwatchAnswered = publicClient.watchContractEvent({
     address: contractAddress,
-    abi,
+    abi: LLMAdapterABI.abi,
     eventName: 'Answered',
     onLogs: logs => {
       logs.forEach((log: any) => {
@@ -117,7 +97,7 @@ const main = async () => {
           const { args } = log;
           if (args) {
             console.log(
-              `Answered event received: queryId=${args.promptId}, llmResponse=${args.response}`
+              `Answered event received: queryId=${args.promptId}, llmResponse=${args.answer}`
             );
           }
         } catch (error) {
