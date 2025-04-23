@@ -12,7 +12,7 @@ export async function parseQuery(promptId: string, input: string): Promise<strin
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4.5-preview-2025-02-27',
+      model: 'gpt-4.1',
       messages: [
       { role: 'system', content: process.env.DIRECTIVE || '' },
       { role: 'user', content: input },
@@ -20,11 +20,6 @@ export async function parseQuery(promptId: string, input: string): Promise<strin
     });
 
     console.log('Response:', response.choices[0].message.content);
-
-    // const encodedResponse = encodeAbiParameters(
-    //   parseAbiParameters('string'),
-    //   [response.choices[0].message.content || '']
-    // );
 
     return response.choices[0].message.content || '';
   } catch (error: any) {
