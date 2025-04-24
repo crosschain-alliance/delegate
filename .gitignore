@@ -42,5 +42,3 @@ logs
 # Acurast
 **/.acurast
 
-# Relayer
-relayer/artifacts
