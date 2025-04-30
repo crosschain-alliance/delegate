@@ -180,7 +180,7 @@ app.post('/get-kms', async (req, res) => {
     let kmsAddress = await publicClient.readContract({
       address: DELEGATE_CONTRACT_ADDRESS,
       abi: DeleGateABI.abi,
-      functionName: 'getKmsAdapter',
+      functionName: 'getUserKmsAdapter',
       args: [userAddress],
     }) as Address;
 
