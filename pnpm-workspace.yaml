@@ -1,0 +1,6 @@
+packages:
+  - 'contracts'
+  - 'relayer'
+  - 'acurast_llm'
+  - 'voter'
+  - 'llm-handler'

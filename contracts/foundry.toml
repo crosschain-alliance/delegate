@@ -10,5 +10,6 @@ ffi = true
 ast = true
 build_info = true
 extra_output = ["storageLayout"]
+etherscan_api_key = "KX1W4DHXD9R142M1CSF8PA5NVUE5DE93T6"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
