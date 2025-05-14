@@ -1,6 +1,5 @@
 import { config } from 'dotenv';
 import { OpenAI } from 'openai';
-import { encodeAbiParameters, parseAbiParameters } from 'viem';
 
 config();
 

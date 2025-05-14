@@ -16,6 +16,19 @@
     },
     "deploy:local": {
       "cache": false
+    },
+    "python:install": {
+      "cache": true,
+      "inputs": ["requirements.txt", "pyproject.toml"]
+    },
+    "python:test": {
+      "dependsOn": ["python:install"],
+      "cache": true
+    },
+    "python:build": {
+      "dependsOn": ["python:install"],
+      "outputs": ["dist/**"],
+      "cache": true
     }
   }
 }

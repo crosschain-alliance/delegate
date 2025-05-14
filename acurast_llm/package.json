@@ -4,11 +4,11 @@
     "description": "",
     "main": "dist/bundle.js",
     "scripts": {
-      "start": "npm run build && node ./dist/bundle.js",
+      "start": "pnpm run build && node ./dist/bundle.js",
       "build": "webpack",
-      "bundle": "npm run build",
+      "bundle": "pnpm run build",
       "test": "echo \"Error: no test specified\" && exit 1",
-      "deploy": "npm run bundle && acurast deploy"
+      "deploy": "pnpm run bundle && acurast deploy"
     },
     "license": "MIT",
     "dependencies": {

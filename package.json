@@ -1,8 +1,8 @@
 {
-  "name": "delegate",
+  "name": "davos",
   "version": "1.0.0",
   "description": "",
-  "packageManager": "npm@11.1.0",
+  "packageManager": "pnpm@8.15.5",
   "workspaces": [
     "contracts",
     "relayer",
@@ -10,12 +10,12 @@
     "voter"
   ],
   "scripts": {
-    "build": "turbo run build",
-    "test": "turbo run test",
+    "build": "turbo build",
+    "test": "turbo test",
     "dev:anvil": "anvil --block-time 1",
-    "dev:deploy": "npm run deploy:local -w contracts",
+    "dev:deploy": "pnpm run deploy:local --filter contracts",
     "format": "prettier --write \"**/*.{ts,tsx,md,json,sol}\"",
-    "lint": "turbo run lint"
+    "lint": "turbo lint"
   },
   "keywords": [],
   "author": "",

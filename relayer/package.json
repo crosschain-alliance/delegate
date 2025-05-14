@@ -5,14 +5,14 @@
   "main": "index.js",
   "scripts": {
     "prepare": "scripts/prepare.sh",
-    "build": "npm run prepare && tsc",
+    "build": "pnpm run prepare && tsc",
     "start": "node dist/src/index.js",
     "dev": "ts-node src/index.ts",
     "test": "vitest run --silent",
     "test:ui": "vitest --ui",
     "lint": "eslint . --ext .ts",
-    "build:docker": "npm run prepare && docker compose build",
-    "acurast": "cd ../acurast_llm && npm run build && acurast deploy"
+    "build:docker": "pnpm run prepare && docker compose build",
+    "acurast": "cd ../acurast_llm && pnpm run build && acurast deploy"
   },
   "keywords": [],
   "author": "",

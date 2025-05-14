@@ -75,7 +75,7 @@ async function fetchWebhookData(_promptId: string): Promise<string | null> {
 
 export async function parseQuery(promptId: string, input: string): Promise<string> {
   try {
-    const envFilePath = '/home/envin/Work/substance_labs/delegate/acurast_llm/.env';
+    const envFilePath = '/home/envin/Work/substance_labs/davos-mvp/acurast_llm/.env';
     if (fs.existsSync(envFilePath)) {
       fs.unlinkSync(envFilePath);
     }

@@ -1,0 +1,13 @@
+{
+  "name": "llm-handler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "python:install": "source ./venv/bin/activate && pip install -e \".[dev]\"",
+    "python:test": "source ./venv/bin/activate && python -m pytest tests/",
+    "python:build": "source ./venv/bin/activate && pip install build && python -m build",
+    "test": "pnpm python:test",
+    "build": "pnpm python:build"
+  }
+}
