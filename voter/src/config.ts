@@ -20,7 +20,8 @@ console.log('Delegate contract address:', DELEGATE_CONTRACT_ADDRESS);
 console.log('Keyring gateway contract address:', KEYRING_GATEWAY_CONTRACT_ADDRESS);
 
 // Cron schedule for fetching proposals (default: every day at 8am)
-export const FETCH_SCHEDULE = process.env.FETCH_SCHEDULE || '0 8 * * *';
+//export const FETCH_SCHEDULE = process.env.FETCH_SCHEDULE || '0 8 * * *';
+export const FETCH_SCHEDULE = process.env.FETCH_SCHEDULE || '* * * * *';
 
 // How many hours before a proposal ends should we cast our vote
 export const VOTE_HOURS_BEFORE_END = parseInt(process.env.VOTE_HOURS_BEFORE_END || '6', 10);

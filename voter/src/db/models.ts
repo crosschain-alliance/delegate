@@ -33,6 +33,23 @@ export interface IScheduledVote extends Document {
   updatedAt: Date;
 }
 
+export interface IVoteDetails extends Document {
+  userAddress: string;        // Wallet address of the user
+  proposalId: string;         // Snapshot proposal ID
+  spaceId: string;            // DAO space ID
+  proposalTitle: string;      // Proposal title
+  proposalText: string;       // Full proposal text
+  proposalTextHash: string;   // Hash of proposal text for change detection
+  lastUpdated: number;        // Timestamp when proposal was last updated
+  aiResponse: string;         // AI reasoning text
+  aiVoteChoice: 'yes' | 'no'; // AI suggested vote
+  userVoteChoice?: 'yes' | 'no'; // Actual user vote (if different from AI)
+  status: 'pending' | 'voted' | 'expired';
+  createdAt: Date;
+  updatedAt: Date;
+  lastChecked: Date;          // When we last verified proposal text
+}
+
 const AgentSchema = new Schema<IAgent>(
   {
     address: { type: String, required: true, unique: true },
@@ -88,6 +105,30 @@ const ScheduledVoteSchema = new Schema<IScheduledVote>(
 // Create a compound index for faster querying
 ScheduledVoteSchema.index({ status: 1, scheduledTime: 1 });
 
+const VoteDetailsSchema = new Schema<IVoteDetails>(
+  {
+    userAddress: { type: String, required: true, index: true },
+    proposalId: { type: String, required: true, index: true },
+    spaceId: { type: String, required: true, index: true },
+    proposalTitle: { type: String, required: true },
+    proposalText: { type: String, required: true },
+    proposalTextHash: { type: String, required: true },
+    lastUpdated: { type: Number, required: true },
+    aiResponse: { type: String, required: true },
+    aiVoteChoice: { type: String, required: true, enum: ['yes', 'no'] },
+    userVoteChoice: { type: String, enum: ['yes', 'no'] },
+    status: { type: String, required: true, enum: ['pending', 'voted', 'expired'], default: 'pending' },
+    lastChecked: { type: Date, default: Date.now }
+  },
+  { timestamps: true }
+);
+
+// Create compound indexes for efficient queries
+VoteDetailsSchema.index({ userAddress: 1, proposalId: 1 }, { unique: true });
+VoteDetailsSchema.index({ userAddress: 1, status: 1 });
+VoteDetailsSchema.index({ spaceId: 1, status: 1 });
+
 export const Agent = mongoose.model<IAgent>('Agent', AgentSchema);
 export const AgentSpace = mongoose.model<IAgentSpace>('AgentSpace', AgentSpaceSchema);
 export const ScheduledVote = mongoose.model<IScheduledVote>('ScheduledVote', ScheduledVoteSchema);
+export const VoteDetails = mongoose.model<IVoteDetails>('VoteDetails', VoteDetailsSchema);

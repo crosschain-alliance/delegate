@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
-import { Agent, AgentSpace, IAgent, IAgentSpace, ScheduledVote, IScheduledVote } from './models';
+import { Agent, AgentSpace, IAgent, IAgentSpace, ScheduledVote, IScheduledVote, VoteDetails, IVoteDetails } from './models';
 import logger from '../logger';
 import { SnapshotProposal } from '../types';
+import { createHash } from 'crypto';
 
 /**
  * Initialize the database connection
@@ -500,5 +501,180 @@ export async function getVoteStatistics(): Promise<{
       failed: 0,
       upcomingIn24h: 0
     };
+  }
+}
+
+// ============================================================================
+// VOTE DETAILS MANAGEMENT FUNCTIONS
+// ============================================================================
+
+/**
+ * Create or update vote details for a user and proposal
+ */
+export async function upsertVoteDetails(
+  userAddress: string,
+  proposalId: string,
+  spaceId: string,
+  proposalTitle: string,
+  proposalText: string,
+  lastUpdated: number,
+  aiResponse: string,
+  aiVoteChoice: 'yes' | 'no'
+): Promise<IVoteDetails | null> {
+  try {
+    const proposalTextHash = createHash('sha256').update(proposalText).digest('hex');
+    
+    const voteDetails = await VoteDetails.findOneAndUpdate(
+      { userAddress, proposalId },
+      {
+        spaceId,
+        proposalTitle,
+        proposalText,
+        proposalTextHash,
+        lastUpdated,
+        aiResponse,
+        aiVoteChoice,
+        status: 'pending',
+        lastChecked: new Date()
+      },
+      { 
+        upsert: true, 
+        new: true,
+        setDefaultsOnInsert: true
+      }
+    );
+    
+    logger.info(`Upserted vote details for user ${userAddress}, proposal ${proposalId}`);
+    return voteDetails;
+  } catch (error) {
+    logger.error(`Failed to upsert vote details: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Get vote details for a specific user and proposal
+ */
+export async function getVoteDetails(
+  userAddress: string,
+  proposalId: string
+): Promise<IVoteDetails | null> {
+  try {
+    return await VoteDetails.findOne({ userAddress, proposalId });
+  } catch (error) {
+    logger.error(`Failed to get vote details: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Get all vote details for a user
+ */
+export async function getUserVoteDetails(userAddress: string): Promise<IVoteDetails[]> {
+  try {
+    return await VoteDetails.find({ userAddress }).sort({ createdAt: -1 });
+  } catch (error) {
+    logger.error(`Failed to get user vote details: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Update user vote choice
+ */
+export async function updateUserVote(
+  userAddress: string,
+  proposalId: string,
+  userVoteChoice: 'yes' | 'no'
+): Promise<boolean> {
+  try {
+    const result = await VoteDetails.updateOne(
+      { userAddress, proposalId },
+      { 
+        userVoteChoice,
+        status: 'voted',
+        updatedAt: new Date()
+      }
+    );
+    
+    if (result.modifiedCount > 0) {
+      logger.info(`Updated user vote for ${userAddress}, proposal ${proposalId} to ${userVoteChoice}`);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    logger.error(`Failed to update user vote: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
+/**
+ * Check if proposal has changed since last check
+ */
+export async function hasProposalChanged(
+  userAddress: string,
+  proposalId: string,
+  currentText: string,
+  currentTimestamp: number
+): Promise<boolean> {
+  try {
+    const existingVote = await VoteDetails.findOne({ userAddress, proposalId });
+    if (!existingVote) {
+      return true; // No existing vote, so it's "changed"
+    }
+    
+    const currentTextHash = createHash('sha256').update(currentText).digest('hex');
+    
+    // Check if text hash or timestamp changed
+    const textChanged = existingVote.proposalTextHash !== currentTextHash;
+    const timestampChanged = existingVote.lastUpdated !== currentTimestamp;
+    
+    if (textChanged || timestampChanged) {
+      logger.info(`Proposal ${proposalId} changed for user ${userAddress}: text=${textChanged}, timestamp=${timestampChanged}`);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    logger.error(`Failed to check proposal change: ${error instanceof Error ? error.message : String(error)}`);
+    return true; // Assume changed on error
+  }
+}
+
+/**
+ * Update proposal check timestamp
+ */
+export async function updateProposalCheck(
+  userAddress: string,
+  proposalId: string
+): Promise<boolean> {
+  try {
+    const result = await VoteDetails.updateOne(
+      { userAddress, proposalId },
+      { lastChecked: new Date() }
+    );
+    return result.modifiedCount > 0;
+  } catch (error) {
+    logger.error(`Failed to update proposal check: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
+/**
+ * Mark vote as expired
+ */
+export async function markVoteExpired(
+  userAddress: string,
+  proposalId: string
+): Promise<boolean> {
+  try {
+    const result = await VoteDetails.updateOne(
+      { userAddress, proposalId },
+      { status: 'expired', updatedAt: new Date() }
+    );
+    return result.modifiedCount > 0;
+  } catch (error) {
+    logger.error(`Failed to mark vote expired: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
   }
 }

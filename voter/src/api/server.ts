@@ -16,7 +16,14 @@ import {
   countScheduledVotes,
   getUpcomingVotes,
   getVoteStatistics,
-  markVoteCompleted
+  markVoteCompleted,
+  upsertVoteDetails,
+  getVoteDetails,
+  getUserVoteDetails,
+  updateUserVote,
+  hasProposalChanged,
+  updateProposalCheck,
+  markVoteExpired
 } from '../db/service';
 import logger from '../logger';
 import { deployKmsAdapter, getAgentAccountFromAddress, getAgentsByUserAddress, getKmsAddress, publicClient, walletClient } from '../lib/utils';
@@ -798,6 +805,223 @@ app.post('/api/snapshot-vote', async (req, res) => {
     return res.status(500).json({ 
       success: false, 
       error: 'Failed to submit vote', 
+      message: errorMessage 
+    });
+  }
+});
+
+// ============================================================================
+// VOTE DETAILS API ENDPOINTS
+// ============================================================================
+
+/**
+ * GET /api/vote-details/:userAddress - Get all vote details for a user
+ */
+app.get('/api/vote-details/:userAddress', async (req, res) => {
+  try {
+    const { userAddress } = req.params;
+    
+    if (!userAddress) {
+      return res.status(400).json({ error: 'User address is required' });
+    }
+    
+    const voteDetails = await getUserVoteDetails(userAddress);
+    
+    return res.status(200).json({
+      success: true,
+      data: voteDetails
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to get vote details: ${errorMessage}`);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get vote details',
+      message: errorMessage 
+    });
+  }
+});
+
+/**
+ * GET /api/vote-details/:userAddress/:proposalId - Get specific vote details
+ */
+app.get('/api/vote-details/:userAddress/:proposalId', async (req, res) => {
+  try {
+    const { userAddress, proposalId } = req.params;
+    
+    if (!userAddress || !proposalId) {
+      return res.status(400).json({ error: 'User address and proposal ID are required' });
+    }
+    
+    const voteDetails = await getVoteDetails(userAddress, proposalId);
+    
+    if (!voteDetails) {
+      return res.status(404).json({ error: 'Vote details not found' });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      data: voteDetails
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to get vote details: ${errorMessage}`);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get vote details',
+      message: errorMessage 
+    });
+  }
+});
+
+/**
+ * POST /api/vote-details - Create or update vote details
+ */
+app.post('/api/vote-details', async (req, res) => {
+  try {
+    const {
+      userAddress,
+      proposalId,
+      spaceId,
+      proposalTitle,
+      proposalText,
+      lastUpdated,
+      aiResponse,
+      aiVoteChoice
+    } = req.body;
+    
+    if (!userAddress || !proposalId || !spaceId || !proposalTitle || !proposalText || 
+        lastUpdated === undefined || !aiResponse || !aiVoteChoice) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: userAddress, proposalId, spaceId, proposalTitle, proposalText, lastUpdated, aiResponse, aiVoteChoice' 
+      });
+    }
+    
+    const voteDetails = await upsertVoteDetails(
+      userAddress,
+      proposalId,
+      spaceId,
+      proposalTitle,
+      proposalText,
+      lastUpdated,
+      aiResponse,
+      aiVoteChoice
+    );
+    
+    if (!voteDetails) {
+      return res.status(500).json({ error: 'Failed to save vote details' });
+    }
+    
+    return res.status(201).json({
+      success: true,
+      data: voteDetails
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to save vote details: ${errorMessage}`);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to save vote details',
+      message: errorMessage 
+    });
+  }
+});
+
+/**
+ * PUT /api/vote-details/:userAddress/:proposalId/vote - Update user vote choice
+ */
+app.put('/api/vote-details/:userAddress/:proposalId/vote', async (req, res) => {
+  try {
+    const { userAddress, proposalId } = req.params;
+    const { userVoteChoice } = req.body;
+    
+    if (!userAddress || !proposalId) {
+      return res.status(400).json({ error: 'User address and proposal ID are required' });
+    }
+    
+    if (!userVoteChoice || !['yes', 'no'].includes(userVoteChoice)) {
+      return res.status(400).json({ error: 'Valid userVoteChoice (yes/no) is required' });
+    }
+    
+    const success = await updateUserVote(userAddress, proposalId, userVoteChoice);
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Vote details not found or update failed' });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      message: 'User vote updated successfully'
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to update user vote: ${errorMessage}`);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to update user vote',
+      message: errorMessage 
+    });
+  }
+});
+
+/**
+ * POST /api/vote-details/check-proposal - Check if proposal has changed
+ */
+app.post('/api/vote-details/check-proposal', async (req, res) => {
+  try {
+    const { userAddress, proposalId, currentText, currentTimestamp } = req.body;
+    
+    if (!userAddress || !proposalId || !currentText || currentTimestamp === undefined) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: userAddress, proposalId, currentText, currentTimestamp' 
+      });
+    }
+    
+    const hasChanged = await hasProposalChanged(userAddress, proposalId, currentText, currentTimestamp);
+    
+    return res.status(200).json({
+      success: true,
+      hasChanged,
+      message: hasChanged ? 'Proposal has changed' : 'Proposal unchanged'
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to check proposal: ${errorMessage}`);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to check proposal',
+      message: errorMessage 
+    });
+  }
+});
+
+/**
+ * POST /api/vote-details/:userAddress/:proposalId/check - Update last checked timestamp
+ */
+app.post('/api/vote-details/:userAddress/:proposalId/check', async (req, res) => {
+  try {
+    const { userAddress, proposalId } = req.params;
+    
+    if (!userAddress || !proposalId) {
+      return res.status(400).json({ error: 'User address and proposal ID are required' });
+    }
+    
+    const success = await updateProposalCheck(userAddress, proposalId);
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Vote details not found' });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Proposal check timestamp updated'
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to update proposal check: ${errorMessage}`);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to update proposal check',
       message: errorMessage 
     });
   }
