@@ -40,11 +40,10 @@ export async function runFetchAndSchedule(): Promise<void> {
     try {
       logger.info(`Fetching proposals for space: ${spaceId}`);
       const proposals = await fetchProposals(spaceId);
-      logger.info(`****** Fetched ${JSON.stringify(proposals)} proposals for space ${spaceId}`);
       
       if (proposals.length === 0) {
         logger.info(`No active proposals found for ${spaceId}`);
-        //continue;
+        continue;
       }
       
       // Get all agents for this space to save vote details for each user

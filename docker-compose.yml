@@ -36,6 +36,7 @@ services:
       - MONGODB_URI=mongodb://davos:voterpassword@mongodb:27017/davos-voter?authSource=admin
       - NODE_ENV=production
     volumes:
+      - ./.env:/app/root.env
       - logs:/app/logs
     restart: always
 
@@ -69,9 +70,9 @@ services:
       context: ./test-env
       dockerfile: Dockerfile
     ports:
-      - "5000:5000"
+      - "5001:5001"
     volumes:
-      - ../.env:/app/.env
+      - ./.env:/app/.env
     restart: always
 
 volumes:

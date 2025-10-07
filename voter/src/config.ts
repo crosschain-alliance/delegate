@@ -6,7 +6,7 @@ import { Address } from 'viem';
 dotenv.config();
 
 // Load root .env if exists
-dotenv.config({ path: path.join(process.cwd(), '../../.env') });
+dotenv.config({ path: '/app/root.env' });
 
 // Validate required environment variables
 if (!process.env.SNAPSHOT_HUB_URL || !process.env.RPC_URL || !process.env.DELEGATE_CONTRACT_ADDRESS || !process.env.KEYRING_GATEWAY_CONTRACT_ADDRESS) {
@@ -16,7 +16,7 @@ if (!process.env.SNAPSHOT_HUB_URL || !process.env.RPC_URL || !process.env.DELEGA
 // Override SNAPSHOT_HUB_URL if TEST_ENV is true
 let snapshotHubUrl = process.env.SNAPSHOT_HUB_URL;
 if (process.env.TEST_ENV === 'true') {
-  snapshotHubUrl = 'http://test-env:5000/graphql';
+  snapshotHubUrl = 'http://test-env:5001/graphql';
 }
 
 export const SNAPSHOT_HUB_URL = snapshotHubUrl;
@@ -26,6 +26,12 @@ export const REL_CHAIN = process.env.REL_CHAIN;
 export const DELEGATE_CONTRACT_ADDRESS = process.env.DELEGATE_CONTRACT_ADDRESS as Address; 
 export const KEYRING_GATEWAY_CONTRACT_ADDRESS = process.env.KEYRING_GATEWAY_CONTRACT_ADDRESS as Address;
 
+console.log('SNAPSHOT_HUB_URL:', SNAPSHOT_HUB_URL);
+console.log('TEST_ENV:', process.env.TEST_ENV);
+console.log('TEST_FETCH_SCHEDULE:', process.env.TEST_FETCH_SCHEDULE);
+console.log('TEST_START_PROPOSAL:', process.env.TEST_START_PROPOSAL);
+console.log('TEST_END_PROPOSAL:', process.env.TEST_END_PROPOSAL);
+
 console.log('Delegate contract address:', DELEGATE_CONTRACT_ADDRESS);
 console.log('Keyring gateway contract address:', KEYRING_GATEWAY_CONTRACT_ADDRESS);
 
@@ -33,7 +39,7 @@ console.log('Keyring gateway contract address:', KEYRING_GATEWAY_CONTRACT_ADDRES
 //export const FETCH_SCHEDULE = process.env.FETCH_SCHEDULE || '0 8 * * *';
 let fetchSchedule = process.env.FETCH_SCHEDULE || '* * * * *';
 if (process.env.TEST_ENV === 'true') {
-  fetchSchedule = process.env.TEST_FETCH_SCHEDULE;
+  fetchSchedule = process.env.TEST_FETCH_SCHEDULE || '* * * * *';
 }
 
 export const FETCH_SCHEDULE = fetchSchedule;

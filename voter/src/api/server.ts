@@ -397,20 +397,25 @@ app.post('/spaces/:spaceId/agents', async (req, res) => {
     
     let inSpace = false;
 
-    try {
-      // Call isSubscribed function on the delegate contract to check subscription status
-      inSpace = await publicClient.readContract({
-        address: DELEGATE_CONTRACT_ADDRESS,
-        abi: DeleGateABI.abi,
-        functionName: 'isSubscribed',
-        args: [spaceId, agent.userAddress || agent.address, agent.address]
-      }) as boolean;
-      
-      logger.info(`Agent ${agent.address} subscription status for Space ${spaceId}: ${inSpace ? 'Subscribed' : 'Not subscribed'}`);
-    } catch (error) {
-      logger.warn(`Failed to check if agent is subscribed: ${error instanceof Error ? error.message : String(error)}`);
-      // If there's an error checking subscription, assume it's not subscribed
-      inSpace = false;
+    if (process.env.TEST_ENV === 'true') {
+      inSpace = true;
+      logger.info('Skipping delegation verify for test env');
+    } else {
+      try {
+        // Call isSubscribed function on the delegate contract to check subscription status
+        inSpace = await publicClient.readContract({
+          address: DELEGATE_CONTRACT_ADDRESS,
+          abi: DeleGateABI.abi,
+          functionName: 'isSubscribed',
+          args: [spaceId, agent.userAddress || agent.address, agent.address]
+        }) as boolean;
+        
+        logger.info(`Agent ${agent.address} subscription status for Space ${spaceId}: ${inSpace ? 'Subscribed' : 'Not subscribed'}`);
+      } catch (error) {
+        logger.warn(`Failed to check if agent is subscribed: ${error instanceof Error ? error.message : String(error)}`);
+        // If there's an error checking subscription, assume it's not subscribed
+        inSpace = false;
+      }
     }
 
     let hash;
