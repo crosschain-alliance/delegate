@@ -63,6 +63,17 @@ services:
       - FLASK_ENV=production
     restart: always
 
+  # Test environment service for emulating snapshot.org
+  test-env:
+    build:
+      context: ./test-env
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../.env:/app/.env
+    restart: always
+
 volumes:
   mongo_data:
   logs:

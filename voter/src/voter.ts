@@ -47,8 +47,7 @@ export async function processProposalsForVoting(
           // If vote time has already passed but proposal hasn't ended, vote now
           if (currentTimeMs < proposalEndTimeMs) {
             logger.info(`  Vote time already passed, voting immediately for agent ${agent.name}`);
-            // await castVote(proposal, agent.address, agent.privateKey);
-            await castVote(proposal, agent.address, 'fuckyou');
+            await castVote(proposal, agent.address, agent.privateKey);
           } else {
             logger.info(`  Proposal has already ended, skipping for agent ${agent.name}`);
           }

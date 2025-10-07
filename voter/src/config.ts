@@ -1,15 +1,25 @@
 import dotenv from 'dotenv';
+import path from 'path';
 import { DAOConfig } from './types';
 import { Address } from 'viem';
 
 dotenv.config();
+
+// Load root .env if exists
+dotenv.config({ path: path.join(process.cwd(), '../../.env') });
 
 // Validate required environment variables
 if (!process.env.SNAPSHOT_HUB_URL || !process.env.RPC_URL || !process.env.DELEGATE_CONTRACT_ADDRESS || !process.env.KEYRING_GATEWAY_CONTRACT_ADDRESS) {
   throw new Error('Missing required environment variables. Check your .env file.');
 }
 
-export const SNAPSHOT_HUB_URL = process.env.SNAPSHOT_HUB_URL;
+// Override SNAPSHOT_HUB_URL if TEST_ENV is true
+let snapshotHubUrl = process.env.SNAPSHOT_HUB_URL;
+if (process.env.TEST_ENV === 'true') {
+  snapshotHubUrl = 'http://test-env:5000/graphql';
+}
+
+export const SNAPSHOT_HUB_URL = snapshotHubUrl;
 export const RPC_URL = process.env.RPC_URL;
 export const PRIVATE_KEY = process.env.PRIVATE_KEY;
 export const REL_CHAIN = process.env.REL_CHAIN;
@@ -21,7 +31,12 @@ console.log('Keyring gateway contract address:', KEYRING_GATEWAY_CONTRACT_ADDRES
 
 // Cron schedule for fetching proposals (default: every day at 8am)
 //export const FETCH_SCHEDULE = process.env.FETCH_SCHEDULE || '0 8 * * *';
-export const FETCH_SCHEDULE = process.env.FETCH_SCHEDULE || '* * * * *';
+let fetchSchedule = process.env.FETCH_SCHEDULE || '* * * * *';
+if (process.env.TEST_ENV === 'true') {
+  fetchSchedule = process.env.TEST_FETCH_SCHEDULE;
+}
+
+export const FETCH_SCHEDULE = fetchSchedule;
 
 // How many hours before a proposal ends should we cast our vote
 export const VOTE_HOURS_BEFORE_END = parseInt(process.env.VOTE_HOURS_BEFORE_END || '6', 10);

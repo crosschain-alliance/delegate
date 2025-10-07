@@ -73,7 +73,6 @@ export async function fetchProposals(spaceId: string): Promise<SnapshotProposal[
     }
     
     const proposals = data.data.proposals;
-    logger.info(`HERE **** ${JSON.stringify(proposals)}`);
     
     // Debug log the entire response
     // logger.info(`API Response: ${JSON.stringify(data, null, 2)}`);
