@@ -175,5 +175,41 @@ def setup_agent():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/vote-details/<userAddress>/<proposalId>', methods=['GET'])
+def get_vote_details(userAddress, proposalId):
+    """
+    Simulate the vote details endpoint
+    Returns mock vote details for testing
+    """
+    try:
+        # Mock vote details data structure matching the TypeScript interface
+        vote_details = {
+            "success": True,
+            "data": {
+                "userAddress": userAddress,
+                "proposalId": proposalId,
+                "spaceId": "dao_test.eth",
+                "proposalTitle": "Test Proposal for DAO_test",
+                "proposalText": "This is a test proposal for the DAO_test space. It contains sample content for testing purposes.",
+                "proposalTextHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+                "lastUpdated": 1759272763,
+                "aiResponse": "Based on the user's ethos and the proposal content, I recommend voting 'yes' as it aligns with the user's stated principles.",
+                "aiVoteChoice": "yes",
+                "userVoteChoice": None,
+                "status": "pending",
+                "createdAt": "2025-10-14T10:00:00Z",
+                "updatedAt": "2025-10-14T10:00:00Z",
+                "lastChecked": "2025-10-14T10:00:00Z"
+            }
+        }
+        
+        return jsonify(vote_details)
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": "Failed to get vote details",
+            "message": str(e)
+        }), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)
