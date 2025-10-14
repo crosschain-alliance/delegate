@@ -60,25 +60,33 @@ export const API_PORT = parseInt(process.env.API_PORT || '3000', 10);
 export const VOTE_THRESHOLD_MINUTES = 720; // 12 hours before end
 
 // List of DAOs to monitor
-export const DAOS: DAOConfig[] = [
-  {
-    id: 'balancer.eth',
-    name: 'Balancer',
-    defaultVote: 1 // Vote for first option by default
-  },
-  {
-    id: 'aave.eth',
-    name: 'Aave',
-    defaultVote: 1 // Vote for first option by default
-  },
-  {
-    id: 'arbitrumfoundation.eth',
-    name: 'Arbitrum',
-    defaultVote: 1 // Vote for first option by default
-  },
-  {
-    id: 'uniswapgovernance.eth',
-    name: 'Uniswap',
-    defaultVote: 1 // Vote for first option by default
-  }
-];
+export const DAOS: DAOConfig[] = process.env.TEST_ENV === 'true'
+  ? [
+      {
+        id: 'DAO_test',
+        name: 'DAO Test',
+        defaultVote: 1
+      }
+    ]
+  : [
+      {
+        id: 'balancer.eth',
+        name: 'Balancer',
+        defaultVote: 1 // Vote for first option by default
+      },
+      {
+        id: 'aave.eth',
+        name: 'Aave',
+        defaultVote: 1 // Vote for first option by default
+      },
+      {
+        id: 'arbitrumfoundation.eth',
+        name: 'Arbitrum',
+        defaultVote: 1 // Vote for first option by default
+      },
+      {
+        id: 'uniswapgovernance.eth',
+        name: 'Uniswap',
+        defaultVote: 1 // Vote for first option by default
+      }
+    ];

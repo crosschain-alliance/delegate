@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 Flask = "*"
+flask-cors = "*"
 python-dotenv = "*"
 requests = "*"
 

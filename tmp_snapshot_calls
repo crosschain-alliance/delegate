@@ -1,0 +1,63 @@
+File: snapshot-utils.ts
+Line 8: const response = await fetch(SNAPSHOT_API_URL, {
+Explanation: This is a fetch call to Snapshot's GraphQL API endpoint (defined as https://hub.snapshot.org/graphql in constants). It's used in the fetchGraphQL function to query data like proposals or spaces. The call sends a POST request with a GraphQL query and variables, handling errors and returning parsed JSON data.
+
+File: snapshot-utils.ts
+Line 56: snapshot (in GraphQL query response)
+Explanation: This is part of the GraphQL query string in fetchAllProposals, where snapshot refers to the block number field in the response data. It's not a call itself but a field accessed from the API response after the fetch call above.
+
+File: constants.ts
+Line 175: snapshot (in PROPOSALS_QUERY GraphQL string)
+Explanation: This is a field in the predefined GraphQL query string for fetching proposals. When executed via fetchGraphQL, it requests the snapshot block number for each proposal from Snapshot's API.
+Function Calls Defaulting to or Using Snapshot
+
+File: dao-utils.ts
+Line 9: export async function fetchDaoInfo(source: string = 'snapshot', identifier: string = 'aave.eth'): Promise<any> {
+Explanation: This function defaults its source parameter to 'snapshot', meaning if no source is provided, it assumes Snapshot as the data source. Internally, it likely makes calls to Snapshot's API or related utilities to fetch DAO info (e.g., space details).
+
+File: use-dao.ts
+Line 34: export function useDaoInfo(source: string = 'snapshot', identifier: string = 'aave.eth', options = {}) {
+Explanation: This React hook defaults source to 'snapshot' and calls fetchDaoInfo (from dao-utils), which triggers Snapshot-related data fetching via GraphQL or API calls.
+
+File: use-dao.ts
+Line 3: import { fetchAllProposals, fetchGraphQL } from "@/lib/snapshot-utils";
+Explanation: This import enables calls to fetchAllProposals and fetchGraphQL (which call Snapshot's API) within the hook file, used in functions like useAllProposals.
+Contract/Blockchain Calls to Snapshot Delegation Registry
+
+File: utils.ts
+Lines 264-265: address: SNAPSHOT_DELEGATION_REGISTRY, abi: SnapshotDelegationRegistryABI, (in contract config)
+Explanation: This configures a contract call to the Snapshot Delegation Registry (address: 0x469788fE6E9E9681C6ebF3bF78e7Fd26Fc015446). It's used in functions like delegation setup, where it interacts with the registry contract on-chain (e.g., via wagmi or ethers) to enable/disable agents or check delegations.
+
+File: utils.ts
+Lines 283-284: address: SNAPSHOT_DELEGATION_REGISTRY, abi: SnapshotDelegationRegistryABI,
+Explanation: Similar contract config for another delegation-related call, likely in a function for verifying or setting up delegations.
+
+File: utils.ts
+Lines 306-307: address: SNAPSHOT_DELEGATION_REGISTRY, abi: SnapshotDelegationRegistryABI,
+Explanation: Contract config for a call to check or manage agent status on the Snapshot registry.
+
+File: utils.ts
+Lines 312-313: address: SNAPSHOT_DELEGATION_REGISTRY, abi: SnapshotDelegationRegistryABI,
+Explanation: Another instance for delegation verification or setup calls.
+
+File: utils.ts
+Lines 335-336: address: SNAPSHOT_DELEGATION_REGISTRY, abi: SnapshotDelegationRegistryABI,
+Explanation: Config for calls to enable agents on Snapshot spaces.
+
+File: utils.ts
+Lines 341-342: address: SNAPSHOT_DELEGATION_REGISTRY, abi: SnapshotDelegationRegistryABI,
+Explanation: Config for calls to remove agents from Snapshot spaces.
+Links/External Calls to Snapshot.org
+
+File: Dashboard.tsx
+Line 329: href={https://snapshot.org/#/${dao.identifier}`}`
+Explanation: This is an href attribute in a link that, when clicked, navigates the user to Snapshot.org for the specific DAO space. It's a UI-triggered call to open an external Snapshot page.
+
+File: DaoOverviewCard.tsx
+Line 140: href={https://snapshot.org/#/${dao.identifier}`}`
+Explanation: Similar external link call to Snapshot.org for viewing a DAO.
+
+File: DaoMonthlyCard.tsx
+Line 221: href={https://snapshot.org/#/${dao.identifier}`}`
+Explanation: Another external link to Snapshot.org for DAO details.
+This is the complete list of calls (programmatic invocations) to Snapshot across the codebase—nothing else. If you meant something more specific (e.g., only API calls or contract calls), or if you want me to edit any of these, let me know. Sorry again for the initial mix-up.
