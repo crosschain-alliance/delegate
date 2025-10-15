@@ -22,8 +22,8 @@ def graphql():
                 "proposals": [
                     {
                         "id": "0xa3bc9590fd3af9f59fbad1296886da60c90853e25f1fc53110d9ebc8bd0618b6",
-                        "title": "some title",
-                        "body": "# Summary\nTitle.\n\nSome sort of body explaining the proposal",
+                        "title": "Emotional Support Meme Fund",
+                        "body": "Allocate 5% of the treasury to hire one (1) full-time meme lord to post motivational memes every time the token price drops more than 3%.",
                         "choices": [
                             "For",
                             "Against",
@@ -84,8 +84,8 @@ def get_proposals():
                 "proposals": [
                     {
                         "id": "0xa3bc9590fd3af9f59fbad1296886da60c90853e25f1fc53110d9ebc8bd0618b6",
-                        "title": "DAO Test",
-                        "body": "# Summary\nTitle.\n\nBody explaining the proposal",
+                        "title": "Emotional Support Meme Fund",
+                        "body": "Allocate 5% of the treasury to hire one (1) full-time meme lord to post motivational memes every time the token price drops more than 3%.",
                         "choices": [
                             "For",
                             "Against",
@@ -135,144 +135,45 @@ def get_proposals():
 
 @app.route('/setup-agent', methods=['POST'])
 def setup_agent():
-    """
-    Mock setup-agent endpoint that simulates agent setup without external API calls
-    """
+    # Hardcoded test user address
+    user_address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+    
+    voter_api = "http://davos-voter-api:3000"
+    
     try:
-        # Hardcoded test user address
-        user_address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
-        space_id = "DAO_test"
+        # 1. Init agent
+        create_resp = requests.post(f"{voter_api}/init-agent", json={"userAddress": user_address,
+                                                                     "spaceId": "DAO_test"})
+        if create_resp.status_code != 200:
+            return jsonify({"error": "Failed to init agent", "details": create_resp.text}), 500
+        agent_data = create_resp.json()
+        agent_address = agent_data.get('predictedAgentAddress')
+
+        # 2. Set KMS
+        kms_resp = requests.post(f"{voter_api}/get-kms", json={"userAddress": user_address})
+        if kms_resp.status_code != 200:
+            return jsonify({"error": "Failed to set KMS", "details": kms_resp.text}), 500
+        kms_data = kms_resp.json()
+        kms_address = kms_data.get('kmsAddress')
         
-        # Mock responses for the voter API endpoints
-        # 1. Mock init-agent response
-        predicted_agent_address = "0x8A9219e171Fa297840414df8689e4D7A0cE0d662"
-        
-        # 2. Mock get-kms response
-        kms_address = "0x1234567890123456789012345678901234567890"
-        
-        # 3. Mock finalize-agent response
-        finalize_agent_id = "mock_agent_id_123"
-        
-        # 4. Mock enable agent for space response
-        
-        return jsonify({
-            "success": True,
-            "userAddress": user_address,
-            "spaceId": space_id,
-            "predictedAgentAddress": predicted_agent_address,
-            "kmsAddress": kms_address,
-            "agentId": finalize_agent_id,
-            "message": "Agent setup completed successfully in test mode"
-        })
+        # 3. Finalize agent
+        finalize_resp = requests.post(f"{voter_api}/finalize-agent", json={"userAddress": user_address,
+                                                                           "spaceId": "DAO_test",
+                                                                           "kmsAddress": kms_address})
+        if finalize_resp.status_code != 200:
+            return jsonify({"error": "Failed to finalize agent", "details": finalize_resp.text}), 500
+        finalize_data = finalize_resp.json()
+        finalize_agent_id = finalize_data.get('id')
+
+        # 4. Enable for space
+        enable_resp = requests.post(f"{voter_api}/spaces/DAO_test/agents", json={"agentId": finalize_agent_id,
+                                                                                 "defaultVote": True})
+        if enable_resp.status_code != 200:
+            return jsonify({"error": "Failed to enable agent for space", "details": enable_resp.text}), 500
+        enable_data = enable_resp.json()
+        return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-# Add mock voter API endpoints for testing
-@app.route('/init-agent', methods=['POST'])
-def mock_init_agent():
-    """Mock init-agent endpoint"""
-    try:
-        data = request.get_json()
-        user_address = data.get('userAddress')
-        space_id = data.get('spaceId')
-        
-        if not user_address or not space_id:
-            return jsonify({
-                "success": False,
-                "error": "Missing required parameters"
-            }), 400
-        
-        # Return mock agent address
-        return jsonify({
-            "success": True,
-            "predictedAgentAddress": "0x8A9219e171Fa297840414df8689e4D7A0cE0d662",
-            "isMatchingSpace": False,
-            "isActive": False
-        })
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.route('/get-kms', methods=['POST'])
-def mock_get_kms():
-    """Mock get-kms endpoint"""
-    try:
-        data = request.get_json()
-        user_address = data.get('userAddress')
-        
-        if not user_address:
-            return jsonify({
-                "success": False,
-                "error": "Missing userAddress parameter"
-            }), 400
-        
-        # Return mock KMS address
-        return jsonify({
-            "success": True,
-            "kmsAddress": "0x1234567890123456789012345678901234567890"
-        })
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.route('/finalize-agent', methods=['POST'])
-def mock_finalize_agent():
-    """Mock finalize-agent endpoint"""
-    try:
-        data = request.get_json()
-        user_address = data.get('userAddress')
-        space_id = data.get('spaceId')
-        kms_address = data.get('kmsAddress')
-        
-        if not user_address or not space_id or not kms_address:
-            return jsonify({
-                "success": False,
-                "error": "Missing required parameters"
-            }), 400
-        
-        # Return mock agent ID
-        return jsonify({
-            "success": True,
-            "id": "mock_agent_id_123",
-            "address": "0x8A9219e171Fa297840414df8689e4D7A0cE0d662"
-        })
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-@app.route('/spaces/<space_id>/agents', methods=['POST'])
-def mock_enable_agent(space_id):
-    """Mock enable agent for space endpoint"""
-    try:
-        data = request.get_json()
-        agent_id = data.get('agentId')
-        default_vote = data.get('defaultVote', True)
-        
-        if not agent_id:
-            return jsonify({
-                "success": False,
-                "error": "Missing agentId parameter"
-            }), 400
-        
-        # Return success response
-        return jsonify({
-            "success": True,
-            "spaceId": space_id,
-            "agentId": agent_id,
-            "defaultVote": default_vote,
-            "message": f"Agent {agent_id} enabled for space {space_id}"
-        })
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
 
 @app.route('/api/vote-details/<userAddress>/<proposalId>', methods=['GET'])
 def get_vote_details(userAddress, proposalId):
@@ -288,8 +189,8 @@ def get_vote_details(userAddress, proposalId):
                 "userAddress": userAddress,
                 "proposalId": proposalId,
                 "spaceId": "dao_test.eth",
-                "proposalTitle": "Test Proposal for DAO_test",
-                "proposalText": "This is a test proposal for the DAO_test space. It contains sample content for testing purposes.",
+                "proposalTitle": "Emotional Support Meme Fund",
+                "proposalText": "Allocate 5% of the treasury to hire one (1) full-time meme lord to post motivational memes every time the token price drops more than 3%.",
                 "proposalTextHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
                 "lastUpdated": 1759272763,
                 "aiResponse": "Based on the user's ethos and the proposal content, I recommend voting 'yes' as it aligns with the user's stated principles.",
