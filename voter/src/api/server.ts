@@ -27,7 +27,7 @@ import {
 } from '../db/service';
 import logger from '../logger';
 import { deployKmsAdapter, getAgentAccountFromAddress, getAgentsByUserAddress, getKmsAddress, publicClient, walletClient } from '../lib/utils';
-import { Address } from 'viem';
+import { Address, getCreateAddress } from 'viem';
 import DeleGateABI from '../artifacts/DeleGate.json';
 import { DELEGATE_CONTRACT_ADDRESS, KEYRING_GATEWAY_CONTRACT_ADDRESS } from '../config';
 import { IAgent } from '../db/models';
@@ -63,7 +63,7 @@ app.get('/health', (req, res) => {
 // Init Agent registration
 app.post('/init-agent', async (req, res) => {
   try {
-    const { userAddress, spaceId } = req.body;
+    const { userAddress, spaceId, source } = req.body;
     
     // Validate that address is provided
     if (!userAddress) {
@@ -80,28 +80,32 @@ app.post('/init-agent', async (req, res) => {
       });
     }
 
-    // Check if the user already has an active agent
-    const subscriptions = await publicClient.readContract({
-      address: DELEGATE_CONTRACT_ADDRESS,
-      abi: DeleGateABI.abi,
-      functionName: 'getUserSubscriptions',
-      args: [userAddress]
-    }) as Array<{space: string, module: string}>;
+    // Only check DeleGate subscriptions for Snapshot DAOs
+    // Tally DAOs handle delegation directly on the Governor contract via frontend
+    if (source !== 'tally') {
+      // Check if the user already has an active agent
+      const subscriptions = await publicClient.readContract({
+        address: DELEGATE_CONTRACT_ADDRESS,
+        abi: DeleGateABI.abi,
+        functionName: 'getUserSubscriptions',
+        args: [userAddress]
+      }) as Array<{space: string, module: string}>;
 
-    const matchingSubscription = subscriptions.length > 0 ? subscriptions.find(sub => sub.space === spaceId) : null;
+      const matchingSubscription = subscriptions.length > 0 ? subscriptions.find(sub => sub.space === spaceId) : null;
 
-    if (matchingSubscription) {
-      const matchingAgent = await getAgentByAddress(matchingSubscription.module);
-      if (matchingAgent) {
-        logger.info(`Found already active Agent for Space ${spaceId}: ${matchingSubscription.module}`);
-        return res.status(200).json({
-          success: true,
-          predictedAgentAddress: matchingSubscription.module,
-          isMatchingSpace: true,
-          isActive: true
-        });
-      } else {
-        console.error(`Agent not found in DB for address ${matchingSubscription.module}`);
+      if (matchingSubscription) {
+        const matchingAgent = await getAgentByAddress(matchingSubscription.module);
+        if (matchingAgent) {
+          logger.info(`Found already active Agent for Space ${spaceId}: ${matchingSubscription.module}`);
+          return res.status(200).json({
+            success: true,
+            predictedAgentAddress: matchingSubscription.module,
+            isMatchingSpace: true,
+            isActive: true
+          });
+        } else {
+          console.error(`Agent not found in DB for address ${matchingSubscription.module}`);
+        }
       }
     }
 
@@ -142,7 +146,21 @@ app.post('/init-agent', async (req, res) => {
     
     // Validate address format using Viem's Address type
     try {
-      const predictedKMSAddress = await getKmsAddress(userAddress as Address);
+      // For Tally DAOs, use a fixed nonce (0) since we don't query on-chain subscriptions
+      // For Snapshot DAOs, we query the chain to get the actual nonce
+      let predictedKMSAddress: Address;
+      
+      if (source === 'tally') {
+        // Use fixed nonce for Tally - no on-chain subscription check needed
+        predictedKMSAddress = getCreateAddress({
+          from: userAddress as Address,
+          nonce: BigInt(0)
+        });
+      } else {
+        // Query actual nonce for Snapshot DAOs
+        predictedKMSAddress = await getKmsAddress(userAddress as Address);
+      }
+      
       console.info('Predicted KMS Address:', predictedKMSAddress);
 
       const { address: predictedAgentAddress } = getAgentAccountFromAddress(predictedKMSAddress);
@@ -173,7 +191,7 @@ app.post('/init-agent', async (req, res) => {
 app.post('/get-kms', async (req, res) => {
   try {
     // Extract parameters from request body
-    const { userAddress } = req.body as { userAddress?: Address };
+    const { userAddress, source = 'snapshot' } = req.body as { userAddress?: Address; source?: string };
     
     // Validate input
     if (!userAddress) {
@@ -183,7 +201,17 @@ app.post('/get-kms', async (req, res) => {
       });
     }
 
-    // Check if KMS adapter already exists
+    // For Tally DAOs, we don't need KMS - just return a placeholder
+    if (source === 'tally') {
+      console.info('[Tally] Skipping KMS check for Tally DAO');
+      return res.status(200).json({
+        success: true,
+        kmsAddress: '0x0000000000000000000000000000000000000000',
+        deploymentNeeded: false
+      });
+    }
+
+    // Check if KMS adapter already exists (for Snapshot DAOs)
     let kmsAddress = await publicClient.readContract({
       address: DELEGATE_CONTRACT_ADDRESS,
       abi: DeleGateABI.abi,
@@ -261,10 +289,11 @@ app.post('/get-kms', async (req, res) => {
 app.post('/finalize-agent', async (req, res) => {
   try {
     // Extract parameters from request body
-    const { userAddress, spaceId, kmsAddress } = req.body as { 
+    const { userAddress, spaceId, kmsAddress, source = 'snapshot' } = req.body as { 
       userAddress?: Address, 
       spaceId?: string,
-      kmsAddress?: Address 
+      kmsAddress?: Address,
+      source?: string
     };
     
     // Validate input
@@ -282,37 +311,42 @@ app.post('/finalize-agent', async (req, res) => {
       });
     }
 
-    if (!kmsAddress) {
+    // For Tally DAOs, kmsAddress may be zero address (no KMS needed)
+    // For Snapshot DAOs, kmsAddress is required
+    if (!kmsAddress && source !== 'tally') {
       return res.status(400).json({ 
         success: false, 
         error: 'Missing required parameter: kmsAddress' 
       });
     }
 
-    // Check for existing subscriptions
-    const subscriptions = await publicClient.readContract({
-      address: DELEGATE_CONTRACT_ADDRESS,
-      abi: DeleGateABI.abi,
-      functionName: 'getUserSubscriptions',
-      args: [userAddress]
-    }) as Array<{space: string, module: string}>;
+    // Check for existing subscriptions (only for Snapshot DAOs)
+    // Tally DAOs don't use the DeleGate contract for subscriptions
+    if (source !== 'tally') {
+      const subscriptions = await publicClient.readContract({
+        address: DELEGATE_CONTRACT_ADDRESS,
+        abi: DeleGateABI.abi,
+        functionName: 'getUserSubscriptions',
+        args: [userAddress]
+      }) as Array<{space: string, module: string}>;
 
-    const matchingSubscription = subscriptions.length > 0 ? subscriptions.find(sub => sub.space === spaceId) : null;   
+      const matchingSubscription = subscriptions.length > 0 ? subscriptions.find(sub => sub.space === spaceId) : null;   
 
-    if (matchingSubscription) {
-      logger.info(`Found matching subscription for Space ${spaceId}: module=${matchingSubscription.module}`);
-      const agent = await getAgentByAddress(matchingSubscription.module);
-      if (agent) {
-        return res.status(200).json({
-          id: agent._id,
-          address: agent.address,
-          name: agent.name,
-          kmsAdapterAddress: agent.kmsAdapterAddress,
-          userAddress: agent.userAddress,
-          existingAgent: true
-        });
+      if (matchingSubscription) {
+        logger.info(`Found matching subscription for Space ${spaceId}: module=${matchingSubscription.module}`);
+        const agent = await getAgentByAddress(matchingSubscription.module);
+        if (agent) {
+          return res.status(200).json({
+            id: agent._id,
+            address: agent.address,
+            name: agent.name,
+            kmsAdapterAddress: agent.kmsAdapterAddress,
+            userAddress: agent.userAddress,
+            existingAgent: true
+          });
+        }
+        logger.warn(`Agent already exists for user ${userAddress} in space ${spaceId}, but not in DB`);
       }
-      logger.warn(`Agent already exists for user ${userAddress} in space ${spaceId}, but not in DB`);
     }
 
     //FIXME filter by spaceId
@@ -328,23 +362,40 @@ app.post('/finalize-agent', async (req, res) => {
       });
     }
 
-    // Create the agent account from KMS address
-    const agentAccount = getAgentAccountFromAddress(kmsAddress);
-
-    // Get private key
-    const hdKey = agentAccount.getHdKey();
-    const privateKeyBytes = hdKey.privateKey;
-    if (!privateKeyBytes) {
-      throw new Error('Failed to retrieve private key bytes');
+    // For Tally DAOs, generate agent from user address directly
+    let agentAccount;
+    let agentPrivateKey;
+    if (source === 'tally' && (!kmsAddress || kmsAddress === '0x0000000000000000000000000000000000000000')) {
+      logger.info(`[Tally] Generating agent from user address: ${userAddress}`);
+      // Generate agent from user address, not KMS
+      agentAccount = getAgentAccountFromAddress(userAddress);
+      const hdKey = agentAccount.getHdKey();
+      const privateKeyBytes = hdKey.privateKey;
+      if (!privateKeyBytes) {
+        throw new Error('Failed to retrieve private key bytes');
+      }
+      agentPrivateKey = `0x${Buffer.from(privateKeyBytes).toString('hex')}`;
+    } else {
+      // For Snapshot DAOs, use KMS address
+      logger.info(`[Snapshot] Generating agent from KMS address: ${kmsAddress}`);
+      if (!kmsAddress) {
+        throw new Error('KMS address is required for Snapshot DAOs');
+      }
+      agentAccount = getAgentAccountFromAddress(kmsAddress);
+      const hdKey = agentAccount.getHdKey();
+      const privateKeyBytes = hdKey.privateKey;
+      if (!privateKeyBytes) {
+        throw new Error('Failed to retrieve private key bytes');
+      }
+      agentPrivateKey = `0x${Buffer.from(privateKeyBytes).toString('hex')}`;
     }
-    const agentPrivateKey = `0x${Buffer.from(privateKeyBytes).toString('hex')}`;
 
     // Create the agent in the database
     const agent = await addAgent(
       agentAccount.address,
       agentPrivateKey,
       agentAccount.address, // name = address for now
-      kmsAddress,
+      kmsAddress || '0x0000000000000000000000000000000000000000', // For Tally, kmsAddress is zero
       userAddress
     );
 
@@ -470,6 +521,7 @@ app.post('/spaces/:spaceId/agents', async (req, res) => {
 app.delete('/spaces/:spaceId/users/:userAddress', async (req, res) => {
   try {
     const { spaceId, userAddress } = req.params;
+    const { source = 'snapshot' } = req.body; // Get source from body, default to snapshot
 
     let userSubscriptions;
     let matchingAgent = null;
@@ -477,37 +529,43 @@ app.delete('/spaces/:spaceId/users/:userAddress', async (req, res) => {
     let unsubscribeTx;
 
     try {
-      // Call getUserSubscriptions function to get all user subscriptions
-      const subscriptions = await publicClient.readContract({
-        address: DELEGATE_CONTRACT_ADDRESS,
-        abi: DeleGateABI.abi,
-        functionName: 'getUserSubscriptions',
-        args: [userAddress]
-      }) as Array<{space: string, module: string}>;
-      
-      // Check if any subscription matches the current space
-      const matchingSubscription = subscriptions.find(sub => sub.space === spaceId);
-      
-      if (matchingSubscription) {
-        logger.info(`Found matching subscription for Space ${spaceId}: module=${matchingSubscription.module}`);
-        
-        
-        // Call unsubscribe function on the contract
-        const unsubscribeTx = await walletClient.writeContract({
+      // Only check DeleGate subscriptions for Snapshot DAOs
+      // Tally DAOs don't use the DeleGate contract
+      if (source !== 'tally') {
+        // Call getUserSubscriptions function to get all user subscriptions
+        const subscriptions = await publicClient.readContract({
           address: DELEGATE_CONTRACT_ADDRESS,
           abi: DeleGateABI.abi,
-          functionName: 'unsubscribe',
-          args: [spaceId, userAddress, matchingSubscription.module],
-        });
+          functionName: 'getUserSubscriptions',
+          args: [userAddress]
+        }) as Array<{space: string, module: string}>;
         
-        logger.info(`Unsubscribed agent from Space ${spaceId}, tx: ${unsubscribeTx}`);
+        // Check if any subscription matches the current space
+        const matchingSubscription = subscriptions.find(sub => sub.space === spaceId);
         
-        // Wait for transaction to be mined
-        await publicClient.waitForTransactionReceipt({ hash: unsubscribeTx });
-        const agent = await getAgentByAddress(matchingSubscription.module)
-        const success = agent ? await removeAgentFromSpace((agent._id as any).toString(), spaceId) : null;
+        if (matchingSubscription) {
+          logger.info(`Found matching subscription for Space ${spaceId}: module=${matchingSubscription.module}`);
+          
+          
+          // Call unsubscribe function on the contract
+          const unsubscribeTx = await walletClient.writeContract({
+            address: DELEGATE_CONTRACT_ADDRESS,
+            abi: DeleGateABI.abi,
+            functionName: 'unsubscribe',
+            args: [spaceId, userAddress, matchingSubscription.module],
+          });
+          
+          logger.info(`Unsubscribed agent from Space ${spaceId}, tx: ${unsubscribeTx}`);
+          
+          // Wait for transaction to be mined
+          await publicClient.waitForTransactionReceipt({ hash: unsubscribeTx });
+          const agent = await getAgentByAddress(matchingSubscription.module)
+          const success = agent ? await removeAgentFromSpace((agent._id as any).toString(), spaceId) : null;
+        } else {
+          logger.info(`No subscription found for user ${userAddress} in space ${spaceId}`);
+        }
       } else {
-        logger.info(`No subscription found for user ${userAddress} in space ${spaceId}`);
+        logger.info(`[Tally] Skipping DeleGate unsubscribe for Tally DAO`);
       }
     } catch (error) {
       logger.warn(`Failed to check or unsubscribe agent: ${error instanceof Error ? error.message : String(error)}`);
