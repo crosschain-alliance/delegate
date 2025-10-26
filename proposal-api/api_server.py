@@ -1,8 +1,8 @@
 import threading
 import time
-import json
 import datetime
 from flask import Flask, request, jsonify
+
 from proposal_analyzer import analyze_proposals
 
 app = Flask(__name__)
@@ -96,7 +96,6 @@ def proposals_api():
         return jsonify({"error": f"Error processing request: {str(e)}"}), 500
 
     return jsonify(result)
-
 if __name__ == "__main__":
     # Start background cache refresher thread.
     threading.Thread(target=background_cache_refresher, daemon=True).start()
