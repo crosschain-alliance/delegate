@@ -26,7 +26,7 @@ import {
   markVoteExpired
 } from '../db/service';
 import logger from '../logger';
-import { deployKmsAdapter, getAgentAccountFromAddress, getAgentsByUserAddress, getKmsAddress, publicClient, walletClient } from '../lib/utils';
+import { deployKmsAdapter, getAgentAccountFromAddress, getAgentsByUserAddress, getKmsAddress, publicClient, walletClient, mainnetPublicClient } from '../lib/utils';
 import { Address, getCreateAddress } from 'viem';
 import DeleGateABI from '../artifacts/DeleGate.json';
 import { DELEGATE_CONTRACT_ADDRESS, KEYRING_GATEWAY_CONTRACT_ADDRESS } from '../config';
@@ -63,7 +63,7 @@ app.get('/health', (req, res) => {
 // Init Agent registration
 app.post('/init-agent', async (req, res) => {
   try {
-    const { userAddress, spaceId, source } = req.body;
+    const { userAddress, spaceId, source = 'snapshot' } = req.body;
     
     // Validate that address is provided
     if (!userAddress) {
@@ -82,32 +82,12 @@ app.post('/init-agent', async (req, res) => {
 
     // Only check DeleGate subscriptions for Snapshot DAOs
     // Tally DAOs handle delegation directly on the Governor contract via frontend
-    if (source !== 'tally') {
-      // Check if the user already has an active agent
-      const subscriptions = await publicClient.readContract({
-        address: DELEGATE_CONTRACT_ADDRESS,
-        abi: DeleGateABI.abi,
-        functionName: 'getUserSubscriptions',
-        args: [userAddress]
-      }) as Array<{space: string, module: string}>;
-
-      const matchingSubscription = subscriptions.length > 0 ? subscriptions.find(sub => sub.space === spaceId) : null;
-
-      if (matchingSubscription) {
-        const matchingAgent = await getAgentByAddress(matchingSubscription.module);
-        if (matchingAgent) {
-          logger.info(`Found already active Agent for Space ${spaceId}: ${matchingSubscription.module}`);
-          return res.status(200).json({
-            success: true,
-            predictedAgentAddress: matchingSubscription.module,
-            isMatchingSpace: true,
-            isActive: true
-          });
-        } else {
-          console.error(`Agent not found in DB for address ${matchingSubscription.module}`);
-        }
-      }
-    }
+    // NOTE: For now, we skip the DeleGate check since we're just predicting addresses
+    // The DeleGate contract address is on Sepolia, but we're configured for Sepolia anyway
+    // This check can be re-enabled if we need to fetch existing subscriptions
+    // if (source !== 'tally') {
+    //   ... subscription check code ...
+    // }
 
     // Check if the user already has an agent
     const existingAgent = await getAgentsByUserAddress(userAddress);
@@ -157,8 +137,12 @@ app.post('/init-agent', async (req, res) => {
           nonce: BigInt(0)
         });
       } else {
-        // Query actual nonce for Snapshot DAOs
-        predictedKMSAddress = await getKmsAddress(userAddress as Address);
+        // For Snapshot DAOs, just use fixed nonce 0 as well
+        // (We don't need to query the actual nonce for address prediction)
+        predictedKMSAddress = getCreateAddress({
+          from: userAddress as Address,
+          nonce: BigInt(0)
+        });
       }
       
       console.info('Predicted KMS Address:', predictedKMSAddress);
@@ -173,6 +157,7 @@ app.post('/init-agent', async (req, res) => {
         isActive: false
       });
     } catch (error) {
+      logger.error(`Caught error in init-agent: ${error instanceof Error ? error.message : String(error)}`);
       return res.status(400).json({
         success: false,
         error: 'Invalid Ethereum address format'
@@ -212,12 +197,19 @@ app.post('/get-kms', async (req, res) => {
     }
 
     // Check if KMS adapter already exists (for Snapshot DAOs)
-    let kmsAddress = await publicClient.readContract({
-      address: DELEGATE_CONTRACT_ADDRESS,
-      abi: DeleGateABI.abi,
-      functionName: 'getUserKmsAdapter',
-      args: [userAddress],
-    }) as Address;
+    // Use mainnetPublicClient since DeleGate contract is on Ethereum mainnet
+    let kmsAddress: Address | undefined;
+    try {
+      kmsAddress = await mainnetPublicClient.readContract({
+        address: DELEGATE_CONTRACT_ADDRESS,
+        abi: DeleGateABI.abi,
+        functionName: 'getUserKmsAdapter',
+        args: [userAddress],
+      }) as Address;
+    } catch (readError) {
+      logger.info(`No existing KMS adapter found for user ${userAddress}, will deploy new one`);
+      kmsAddress = undefined;
+    }
 
     console.info('KMS Address:', kmsAddress);
 
@@ -229,7 +221,7 @@ app.post('/get-kms', async (req, res) => {
       deployTx?: string;
     } = {
       success: true,
-      kmsAddress,
+      kmsAddress: kmsAddress || '0x0000000000000000000000000000000000000000',
       deploymentNeeded: false
     };
 

@@ -27,6 +27,12 @@ export const publicClient = createPublicClient({
   transport: http(RPC_URL)
 });
 
+// Create a mainnet client for reading DeleGate contract (which is on Ethereum mainnet)
+export const mainnetPublicClient = createPublicClient({
+  chain: mainnet,
+  transport: http('https://eth.llamarpc.com') // Use a public RPC for mainnet
+});
+
 export const walletClient = createWalletClient({
   chain: chain,
   transport: http(RPC_URL),
