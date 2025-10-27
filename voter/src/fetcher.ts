@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { SNAPSHOT_HUB_URL } from './config';
-import { SnapshotProposal } from './types';
+import { SNAPSHOT_HUB_URL, TALLY_API_URL, TALLY_API_KEY } from './config';
+import { SnapshotProposal, TallyProposal } from './types';
 import logger from './logger';
 
 /**
@@ -87,6 +87,75 @@ export async function fetchProposals(spaceId: string): Promise<SnapshotProposal[
     return proposals;
   } catch (error) {
     logger.error(`Failed to fetch proposals for ${spaceId}: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Fetches active proposals from a Tally Governor contract
+ */
+export async function fetchTallyProposals(governorAddress: string): Promise<TallyProposal[]> {
+  try {
+    if (!TALLY_API_URL) {
+      logger.warn('TALLY_API_URL not configured, skipping Tally proposal fetch');
+      return [];
+    }
+
+    const query = `
+      query {
+        governor(input: {id: "eip155:42161:${governorAddress}"}) {
+          id
+          name
+          organization {
+            id
+            name
+          }
+          proposalStats {
+            total
+            active
+          }
+        }
+      }
+    `;
+
+    logger.info(`Fetching Tally proposals for Governor: ${governorAddress}`);
+    logger.info(`Using Tally API endpoint: ${TALLY_API_URL}`);
+
+    const response = await fetch(TALLY_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(TALLY_API_KEY ? { 'Api-Key': TALLY_API_KEY } : {}),
+      },
+      body: JSON.stringify({ query }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    if (data.errors) {
+      throw new Error(`GraphQL error: ${JSON.stringify(data.errors)}`);
+    }
+
+    if (!data.data || !data.data.governor) {
+      logger.warn(`No governor found for address: ${governorAddress}`);
+      return [];
+    }
+
+    const governor = data.data.governor;
+    if (!data.data || !data.data.governor) {
+      logger.warn(`No governor found for address ${governorAddress}`);
+      return [];
+    }
+
+    logger.info(`Found governor: ${data.data.governor.name}`);
+    return [];
+  } catch (error) {
+    logger.error(`Failed to fetch Tally proposals for ${governorAddress}: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   }
 }

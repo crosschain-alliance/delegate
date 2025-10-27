@@ -15,7 +15,15 @@ struct SnapshotVote {
     uint choice;
 }
 
+struct TallyVote {
+    address governorAddress;
+    uint256 proposalId;
+    uint8 support; // 0 = Against, 1 = For, 2 = Abstain
+    string reason;
+}
+
 event snapshotSignVote(address indexed sender, SnapshotVote vote);
+event tallySignVote(address indexed sender, TallyVote vote);
 
 contract KeyringGateway is IKeyringGateway, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     // using OperationDecoder for bytes;
@@ -44,6 +52,32 @@ contract KeyringGateway is IKeyringGateway, UUPSUpgradeable, AccessControlEnumer
         });
         
         emit snapshotSignVote(msg.sender, vote);
+    }
+
+    /**
+     * @dev Sign and emit a Tally vote via Governor contract
+     * @param governorAddress The address of the Governor contract
+     * @param proposalId The proposal ID on the Governor
+     * @param support The vote choice: 0 = Against, 1 = For, 2 = Abstain
+     * @param reason Optional reason for the vote
+     */
+    function signTallyVote(
+        address governorAddress,
+        uint256 proposalId,
+        uint8 support,
+        string calldata reason
+    ) external {
+        require(governorAddress != address(0), "Invalid governor address");
+        require(support <= 2, "Invalid support value (must be 0, 1, or 2)");
+
+        TallyVote memory vote = TallyVote({
+            governorAddress: governorAddress,
+            proposalId: proposalId,
+            support: support,
+            reason: reason
+        });
+
+        emit tallySignVote(msg.sender, vote);
     }
 
     function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}

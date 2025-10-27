@@ -1,6 +1,6 @@
 import cron from 'node-cron';
-import { FETCH_SCHEDULE } from './config';
-import { fetchProposals } from './fetcher';
+import { FETCH_SCHEDULE, DAOS } from './config';
+import { fetchProposals, fetchTallyProposals } from './fetcher';
 import { processProposalsForVoting } from './voter';
 import { getAllActiveSpaces, upsertVoteDetails, hasProposalChanged, getAgentsForSpace } from './db/service';
 import { fetchOpenAIResponse } from './ai-parser';
@@ -25,45 +25,56 @@ export function startScheduler(): void {
 export async function runFetchAndSchedule(): Promise<void> {
   logger.info('Starting proposal fetch and vote scheduling process');
   
-  // Get all active spaces from the database
-  const activeSpaces = await getAllActiveSpaces();
-  
-  if (activeSpaces.length === 0) {
-    logger.warn('No active spaces found in the database');
-    return;
-  }
-  
-  logger.info(`Found ${activeSpaces.length} active spaces`);
-  
-  // Process each space
-  for (const spaceId of activeSpaces) {
+  // Process all configured DAOs (both snapshot and tally)
+  for (const dao of DAOS) {
     try {
-      logger.info(`Fetching proposals for space: ${spaceId}`);
-      const proposals = await fetchProposals(spaceId);
+      logger.info(`Processing DAO: ${dao.name} (${dao.id})`);
+      
+      let proposals: any[] = [];
+      
+      // Fetch proposals based on source type
+      if (dao.source === 'tally' && dao.governorAddress) {
+        logger.info(`Fetching Tally proposals for governor: ${dao.governorAddress}`);
+        proposals = await fetchTallyProposals(dao.governorAddress);
+      } else {
+        // Default to snapshot or explicit snapshot source
+        logger.info(`Fetching Snapshot proposals for space: ${dao.id}`);
+        proposals = await fetchProposals(dao.id);
+      }
       
       if (proposals.length === 0) {
-        logger.info(`No active proposals found for ${spaceId}`);
+        logger.info(`No active proposals found for ${dao.name}`);
         continue;
       }
       
+      logger.info(`Found ${proposals.length} proposals for ${dao.name}`);
+      
       // Get all agents for this space to save vote details for each user
-      const agentsForSpace = await getAgentsForSpace(spaceId);
+      const agentsForSpace = await getAgentsForSpace(dao.id);
       const userAddresses = [...new Set(agentsForSpace.map(a => a.agent.userAddress).filter(Boolean))];
       
-      logger.info(`Found ${userAddresses.length} unique users for space ${spaceId}`);
+      logger.info(`Found ${userAddresses.length} unique users for space ${dao.id}`);
       
       // Process vote details for each user
       for (const userAddress of userAddresses) {
         if (!userAddress) continue;
         
         for (const proposal of proposals) {
+          // Normalize proposal data between Snapshot and Tally formats
+          const normalizedProposal = dao.source === 'tally' ? {
+            id: proposal.id,
+            title: proposal.title,
+            body: proposal.body,
+            end: proposal.endBlock, // Tally uses endBlock instead of end
+          } : proposal; // Snapshot proposal is already in correct format
+          
           try {
             // Check if proposal has changed
             const hasChanged = await hasProposalChanged(
               userAddress,
-              proposal.id,
-              proposal.body,
-              proposal.end
+              normalizedProposal.id,
+              normalizedProposal.body,
+              normalizedProposal.end
             );
             
             if (hasChanged) {
@@ -75,7 +86,7 @@ export async function runFetchAndSchedule(): Promise<void> {
               
               const aiResponse = await fetchOpenAIResponse(
                 `This is the user ethos: ${userEthos}. ${directive}`,
-                proposal.body
+                normalizedProposal.body
               );
               
               // Parse AI response
@@ -87,35 +98,35 @@ export async function runFetchAndSchedule(): Promise<void> {
                 aiVoteChoice = parsed.vote === 'yes' ? 'yes' : 'no';
                 reasoning = parsed.reason || aiResponse;
               } catch (parseError) {
-                logger.warn(`Failed to parse AI response as JSON for proposal ${proposal.id}: ${parseError}`);
+                logger.warn(`Failed to parse AI response as JSON for proposal ${normalizedProposal.id}: ${parseError}`);
               }
               
               // Save vote details
               await upsertVoteDetails(
                 userAddress,
-                proposal.id,
-                spaceId,
-                proposal.title,
-                proposal.body,
-                proposal.end,
+                normalizedProposal.id,
+                dao.id,
+                normalizedProposal.title,
+                normalizedProposal.body,
+                normalizedProposal.end,
                 reasoning,
                 aiVoteChoice
               );
               
-              logger.info(`Saved vote details for user ${userAddress}, proposal ${proposal.id}`);
+              logger.info(`Saved vote details for user ${userAddress}, proposal ${normalizedProposal.id}`);
             } else {
-              logger.info(`Proposal ${proposal.id} unchanged for user ${userAddress}, skipping update`);
+              logger.info(`Proposal ${normalizedProposal.id} unchanged for user ${userAddress}, skipping update`);
             }
           } catch (error) {
-            logger.error(`Error processing proposal ${proposal.id} for user ${userAddress}: ${error instanceof Error ? error.message : String(error)}`);
+            logger.error(`Error processing proposal ${normalizedProposal.id} for user ${userAddress}: ${error instanceof Error ? error.message : String(error)}`);
           }
         }
       }
       
       // Process proposals for voting at the right time
-      await processProposalsForVoting(proposals, spaceId);
+      await processProposalsForVoting(proposals, dao.id);
     } catch (error) {
-      logger.error(`Error processing ${spaceId}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`Error processing ${dao.name}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   

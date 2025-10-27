@@ -25,6 +25,9 @@ export const PRIVATE_KEY = process.env.PRIVATE_KEY;
 export const REL_CHAIN = process.env.REL_CHAIN;
 export const DELEGATE_CONTRACT_ADDRESS = process.env.DELEGATE_CONTRACT_ADDRESS as Address; 
 export const KEYRING_GATEWAY_CONTRACT_ADDRESS = process.env.KEYRING_GATEWAY_CONTRACT_ADDRESS as Address;
+export const TALLY_KEYRING_GATEWAY_CONTRACT_ADDRESS = process.env.TALLY_KEYRING_GATEWAY_CONTRACT_ADDRESS as Address;
+export const TALLY_API_URL = process.env.TALLY_API_URL || 'https://api.tally.xyz/query';
+export const TALLY_API_KEY = process.env.TALLY_API_KEY || '';
 
 console.log('SNAPSHOT_HUB_URL:', SNAPSHOT_HUB_URL);
 console.log('TEST_ENV:', process.env.TEST_ENV);
@@ -82,7 +85,22 @@ export const DAOS: DAOConfig[] = process.env.TEST_ENV === 'true'
       {
         id: 'arbitrumfoundation.eth',
         name: 'Arbitrum',
-        defaultVote: 1 // Vote for first option by default
+        defaultVote: 1, // Vote for first option by default
+        source: 'snapshot'
+      },
+      {
+        id: 'eip155:42161:0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9',
+        name: 'Arbitrum DAO (Treasury)',
+        defaultVote: 1,
+        governorAddress: '0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9',
+        source: 'tally'
+      },
+      {
+        id: 'eip155:42161:0x789fC99093B09aD01C34DC7251D0C89ce743e5a4',
+        name: 'Arbitrum DAO (Security Council)',
+        defaultVote: 1,
+        governorAddress: '0x789fC99093B09aD01C34DC7251D0C89ce743e5a4',
+        source: 'tally'
       },
       {
         id: 'uniswapgovernance.eth',
