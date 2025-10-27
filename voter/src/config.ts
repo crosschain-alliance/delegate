@@ -9,7 +9,7 @@ dotenv.config();
 dotenv.config({ path: '/app/root.env' });
 
 // Validate required environment variables
-if (!process.env.SNAPSHOT_HUB_URL || !process.env.RPC_URL || !process.env.DELEGATE_CONTRACT_ADDRESS || !process.env.KEYRING_GATEWAY_CONTRACT_ADDRESS) {
+if (!process.env.SNAPSHOT_HUB_URL || !process.env.RPC_URL || !process.env.DELEGATE_CONTRACT_ADDRESS || !process.env.KEYRING_GATEWAY_SEPOLIA) {
   throw new Error('Missing required environment variables. Check your .env file.');
 }
 
@@ -24,8 +24,13 @@ export const RPC_URL = process.env.RPC_URL;
 export const PRIVATE_KEY = process.env.PRIVATE_KEY;
 export const REL_CHAIN = process.env.REL_CHAIN;
 export const DELEGATE_CONTRACT_ADDRESS = process.env.DELEGATE_CONTRACT_ADDRESS as Address; 
-export const KEYRING_GATEWAY_CONTRACT_ADDRESS = process.env.KEYRING_GATEWAY_CONTRACT_ADDRESS as Address;
-export const TALLY_KEYRING_GATEWAY_CONTRACT_ADDRESS = process.env.TALLY_KEYRING_GATEWAY_CONTRACT_ADDRESS as Address;
+// Network-specific KeyringGateway addresses
+export const KEYRING_GATEWAY_SEPOLIA = process.env.KEYRING_GATEWAY_SEPOLIA as Address;
+export const KEYRING_GATEWAY_ARBITRUM = process.env.KEYRING_GATEWAY_ARBITRUM as Address;
+
+// Legacy aliases for backwards compatibility
+export const KEYRING_GATEWAY_CONTRACT_ADDRESS = KEYRING_GATEWAY_SEPOLIA;
+export const TALLY_KEYRING_GATEWAY_CONTRACT_ADDRESS = KEYRING_GATEWAY_ARBITRUM;
 export const TALLY_API_URL = process.env.TALLY_API_URL || 'https://api.tally.xyz/query';
 export const TALLY_API_KEY = process.env.TALLY_API_KEY || '';
 
@@ -36,7 +41,8 @@ console.log('TEST_START_PROPOSAL:', process.env.TEST_START_PROPOSAL);
 console.log('TEST_END_PROPOSAL:', process.env.TEST_END_PROPOSAL);
 
 console.log('Delegate contract address:', DELEGATE_CONTRACT_ADDRESS);
-console.log('Keyring gateway contract address:', KEYRING_GATEWAY_CONTRACT_ADDRESS);
+console.log('KeyringGateway Sepolia (Snapshot):', KEYRING_GATEWAY_SEPOLIA);
+console.log('KeyringGateway Arbitrum (Tally):', KEYRING_GATEWAY_ARBITRUM);
 
 // Cron schedule for fetching proposals (default: every day at 8am)
 //export const FETCH_SCHEDULE = process.env.FETCH_SCHEDULE || '0 8 * * *';

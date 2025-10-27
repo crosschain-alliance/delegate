@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { KEYRING_GATEWAY_CONTRACT_ADDRESS, TALLY_KEYRING_GATEWAY_CONTRACT_ADDRESS } from './config';
+import { KEYRING_GATEWAY_ARBITRUM } from './config';
 import { createPublicClient, http } from 'viem';
 import { arbitrum } from 'viem/chains';
 import logger from './logger';
@@ -197,11 +197,11 @@ let eventWatcher: any = null;
  * Watch for Tally vote events from the Keyring Gateway contract
  */
 export async function watchTallyEvents(): Promise<void> {
-  logger.info(`Starting Tally event watcher on ${TALLY_RPC_URL}\nGateway address: ${TALLY_KEYRING_GATEWAY_CONTRACT_ADDRESS}`);
+  logger.info(`Starting Tally event watcher on ${TALLY_RPC_URL}\nGateway address: ${KEYRING_GATEWAY_ARBITRUM}`);
   
   try {
     eventWatcher = tallyPublicClient.watchContractEvent({
-      address: TALLY_KEYRING_GATEWAY_CONTRACT_ADDRESS,
+      address: KEYRING_GATEWAY_ARBITRUM,
       abi: KeyringGatewayABI.abi,
       eventName: 'tallySignVote',
       onLogs: (logs: any) => {

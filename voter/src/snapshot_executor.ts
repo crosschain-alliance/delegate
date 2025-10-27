@@ -1,6 +1,6 @@
 import snapshot from '@snapshot-labs/snapshot.js';
 import { ethers } from 'ethers';
-import { KEYRING_GATEWAY_CONTRACT_ADDRESS, RPC_URL } from './config';
+import { KEYRING_GATEWAY_SEPOLIA, RPC_URL } from './config';
 import { publicClient } from './lib/utils';
 import logger from './logger';
 
@@ -64,11 +64,11 @@ let eventWatcher: any = null;
  * Watch for snapshot vote events from the Keyring Gateway contract
  */
 export async function watchSnapshotEvents(): Promise<void> {
-  logger.info(`Starting snapshot event watcher on ${RPC_URL}\nGateway address: ${KEYRING_GATEWAY_CONTRACT_ADDRESS}`);
+  logger.info(`Starting snapshot event watcher on ${RPC_URL}\nGateway address: ${KEYRING_GATEWAY_SEPOLIA}`);
   
   try {
     eventWatcher = publicClient.watchContractEvent({
-      address: KEYRING_GATEWAY_CONTRACT_ADDRESS,
+      address: KEYRING_GATEWAY_SEPOLIA,
       abi: KeyringGatewayABI.abi,
       eventName: 'snapshotSignVote',
       onLogs: logs => {
