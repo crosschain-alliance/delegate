@@ -6,13 +6,17 @@ import { IAgent } from './db/models';
 import { publicClient, walletClient } from './lib/utils';
 import { sepolia } from 'viem/chains';
 import DeleGateABI from './artifacts/DeleGate.json';
+import { ethers } from 'ethers';
+import GovernorABI from './artifacts/Governor.json';
 
 /**
  * Processes proposals and schedules votes at the appropriate time
  */
 export async function processProposalsForVoting(
   proposals: SnapshotProposal[],
-  spaceId: string
+  spaceId: string,
+  source: 'snapshot' | 'tally' = 'snapshot',
+  governorAddress?: string
 ): Promise<void> {
   logger.info(`Processing ${proposals.length} proposals for ${spaceId}`);
   
@@ -57,7 +61,7 @@ export async function processProposalsForVoting(
           const delayMinutes = Math.round((voteTimeMs - currentTimeMs) / (60 * 1000));
           
           logger.info(`  Scheduling vote in ${delayMinutes} minutes for agent ${agent.name}`);
-          await scheduleVoteInDb(proposal, agent, scheduledTime);
+          await scheduleVoteInDb(proposal, agent, scheduledTime, source, governorAddress);
         }
       }
     } catch (error) {
@@ -105,17 +109,27 @@ async function executeScheduledVotes(): Promise<void> {
       
       logger.info(`Executing scheduled vote for proposal: ${vote.proposalTitle} (${vote.proposalId}) for agent ${agent.name}`);
       
-      // Create a simplified proposal object with the necessary information
-      const proposal: SnapshotProposal = {
-        id: vote.proposalId,
-        title: vote.proposalTitle,
-        space: {
-          id: vote.spaceId,
-          name: vote.spaceId, // We don't store the space name in the scheduled vote
+      // Route to correct voting function based on source
+      if (vote.source === 'tally') {
+        // Tally on-chain voting
+        if (!vote.governorAddress) {
+          throw new Error('Governor address required for Tally proposals');
         }
-      } as SnapshotProposal;
+        await castTallyVote(vote.proposalId, vote.governorAddress, agent.privateKey);
+      } else {
+        // Snapshot voting (default for backwards compatibility)
+        const proposal: SnapshotProposal = {
+          id: vote.proposalId,
+          title: vote.proposalTitle,
+          space: {
+            id: vote.spaceId,
+            name: vote.spaceId,
+          }
+        } as SnapshotProposal;
+        
+        await castVote(proposal, agent.address, agent.userAddress);
+      }
       
-      await castVote(proposal, agent.address, agent.userAddress);
       await markVoteCompleted((vote._id as any).toString());
       
       logger.info(`Vote for proposal ${vote.proposalId} successfully executed`);
@@ -128,7 +142,46 @@ async function executeScheduledVotes(): Promise<void> {
 }
 
 /**
+ * Casts a Tally vote directly on the Governor contract (on-chain)
+ * SEPARATE from Snapshot voting - does not affect DeleGate contract usage
+ */
+export async function castTallyVote(
+  proposalId: string,
+  governorAddress: string,
+  privateKey: string
+): Promise<void> {
+  try {
+    logger.info(`Casting Tally vote for proposal ${proposalId} on governor ${governorAddress}`);
+
+    // Setup Arbitrum provider and wallet
+    const TALLY_RPC_URL = process.env.TALLY_RPC_URL || 'https://arb1.arbitrum.io/rpc';
+    const provider = new ethers.providers.JsonRpcProvider(TALLY_RPC_URL);
+    const wallet = new ethers.Wallet(privateKey, provider);
+
+    // Initialize Governor contract
+    const governor = new ethers.Contract(governorAddress, GovernorABI, wallet);
+
+    // Support: 1 = For (voting yes)
+    const support = 1;
+    const proposalIdBN = ethers.BigNumber.from(proposalId);
+
+    logger.info(`Submitting vote: proposalId=${proposalId}, support=${support} (For)`);
+
+    // Call castVote on the Governor contract
+    const tx = await governor.castVote(proposalIdBN, support);
+    logger.info(`Tally vote transaction submitted: ${tx.hash}`);
+
+    const receipt = await tx.wait();
+    logger.info(`Tally vote transaction confirmed in block ${receipt.blockNumber}: ${tx.hash}`);
+  } catch (error) {
+    logger.error(`Tally vote failed for proposal ${proposalId}: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
+  }
+}
+
+/**
  * Casts a vote on a proposal using the DeleGate contract
+ * FOR SNAPSHOT ONLY - unchanged to preserve existing functionality
  */
 export async function castVote(
   proposal: SnapshotProposal,

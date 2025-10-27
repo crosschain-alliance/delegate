@@ -27,6 +27,8 @@ export interface IScheduledVote extends Document {
   agentId: mongoose.Types.ObjectId;
   scheduledTime: Date;
   status: 'scheduled' | 'completed' | 'failed';
+  source?: 'snapshot' | 'tally'; // Track proposal source for correct voting method
+  governorAddress?: string; // For Tally proposals
   executedAt?: Date;
   error?: string;
   createdAt: Date;
@@ -96,6 +98,8 @@ const ScheduledVoteSchema = new Schema<IScheduledVote>(
       enum: ['scheduled', 'completed', 'failed'],
       default: 'scheduled'
     },
+    source: { type: String, enum: ['snapshot', 'tally'], default: 'snapshot' }, // Default to snapshot for backwards compatibility
+    governorAddress: { type: String }, // For Tally proposals
     executedAt: { type: Date },
     error: { type: String }
   },

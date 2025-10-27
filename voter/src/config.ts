@@ -41,12 +41,10 @@ console.log('TEST_START_PROPOSAL:', process.env.TEST_START_PROPOSAL);
 console.log('TEST_END_PROPOSAL:', process.env.TEST_END_PROPOSAL);
 
 console.log('Delegate contract address:', DELEGATE_CONTRACT_ADDRESS);
-console.log('KeyringGateway Sepolia (Snapshot):', KEYRING_GATEWAY_SEPOLIA);
-console.log('KeyringGateway Arbitrum (Tally):', KEYRING_GATEWAY_ARBITRUM);
 
 // Cron schedule for fetching proposals (default: every day at 8am)
 //export const FETCH_SCHEDULE = process.env.FETCH_SCHEDULE || '0 8 * * *';
-let fetchSchedule = process.env.FETCH_SCHEDULE || '* * * * *';
+let fetchSchedule = process.env.FETCH_SCHEDULE || '0 8 * * *';
 if (process.env.TEST_ENV === 'true') {
   fetchSchedule = process.env.TEST_FETCH_SCHEDULE || '* * * * *';
 }

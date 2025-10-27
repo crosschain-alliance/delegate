@@ -8,7 +8,8 @@ import { startApiServer } from './api/server';
 import { MONGODB_URI, API_PORT } from './config';
 import logger from './logger';
 import { watchSnapshotEvents, stopSnapshotEvents } from './snapshot_executor';
-import { watchTallyEvents, stopTallyEvents } from './tally_executor';
+// Tally executor not needed - scheduler votes directly
+// import { watchTallyEvents, stopTallyEvents } from './tally_executor';
 
 dotenv.config();
 
@@ -34,8 +35,8 @@ async function main() {
     // Start snapshot executor to watch for on-chain events
     await watchSnapshotEvents();
     
-    // Start tally executor to watch for tally voting events
-    await watchTallyEvents();
+    // Tally executor not needed - scheduler votes directly on Governor contract
+    // await watchTallyEvents();
     
     logger.info('Davos Voter service started successfully');
   } catch (error) {
@@ -51,14 +52,14 @@ main();
 process.on('SIGINT', () => {
   logger.info('Received SIGINT. Shutting down gracefully...');
   stopSnapshotEvents();
-  stopTallyEvents();
+  // stopTallyEvents(); // Not needed - using direct voting
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   logger.info('Received SIGTERM. Shutting down gracefully...');
   stopSnapshotEvents();
-  stopTallyEvents();
+  // stopTallyEvents(); // Not needed - using direct voting
   process.exit(0);
 });
 

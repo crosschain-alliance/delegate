@@ -124,7 +124,13 @@ export async function runFetchAndSchedule(): Promise<void> {
       }
       
       // Process proposals for voting at the right time
-      await processProposalsForVoting(proposals, dao.id);
+      // Pass source and governorAddress for Tally proposals, defaults to snapshot for backwards compatibility
+      await processProposalsForVoting(
+        proposals, 
+        dao.id, 
+        dao.source || 'snapshot',
+        dao.governorAddress
+      );
     } catch (error) {
       logger.error(`Error processing ${dao.name}: ${error instanceof Error ? error.message : String(error)}`);
     }

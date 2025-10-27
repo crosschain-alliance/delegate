@@ -254,25 +254,28 @@ export function getDocumentId(doc: any): string {
  * Schedule a vote in the database
  */
 export async function scheduleVoteInDb(
-  proposal: SnapshotProposal,
+  proposal: any,
   agent: IAgent,
-  scheduledTime: Date
-): Promise<boolean> {
+  scheduledTime: Date,
+  source: 'snapshot' | 'tally' = 'snapshot',
+  governorAddress?: string
+): Promise<void> {
   try {
     await ScheduledVote.create({
       proposalId: proposal.id,
       proposalTitle: proposal.title,
-      spaceId: proposal.space.id,
+      spaceId: proposal.space?.id || 'unknown',
       agentId: agent._id,
       scheduledTime,
-      status: 'scheduled'
+      status: 'scheduled',
+      source,
+      governorAddress
     });
     
     logger.info(`Vote for proposal ${proposal.id} by agent ${agent.name} scheduled in database for ${scheduledTime.toISOString()}`);
-    return true;
   } catch (error) {
     logger.error(`Failed to schedule vote in database: ${error instanceof Error ? error.message : String(error)}`);
-    return false;
+    throw error;
   }
 }
 
