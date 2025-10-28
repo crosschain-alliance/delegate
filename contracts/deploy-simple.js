@@ -53,10 +53,6 @@ async function deployKeyringGateway() {
     const wallet = new ethers.Wallet('0x73b248b923fd70a158cfe0aa73e348a38ec8cb73e39cb6f0cd3f573f8c095b41', provider);
     const owner = '0x8A9219e171Fa297840414df8689e4D7A0cE0d662';
     
-    console.log('🚀 Deploying KeyringGateway to Arbitrum...');
-    console.log('Deployer:', wallet.address);
-    console.log('Owner:', owner);
-    
     // ABI for the contract
     const abi = [
         "function initialize(address _owner) external",

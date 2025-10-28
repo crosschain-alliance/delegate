@@ -3,6 +3,17 @@ import { SNAPSHOT_HUB_URL, TALLY_API_URL, TALLY_API_KEY } from './config';
 import { SnapshotProposal, TallyProposal } from './types';
 import logger from './logger';
 
+// Simple in-memory cache for Tally proposals to avoid rate limiting
+const tallyCache = new Map<string, { data: TallyProposal[], timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Delay helper to add pauses between API calls
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * Fetches active proposals from a given space (DAO)
  */
@@ -153,7 +164,124 @@ export async function fetchTallyProposals(governorAddress: string): Promise<Tall
     }
 
     logger.info(`Found governor: ${data.data.governor.name}`);
-    return [];
+    
+    // Check cache first
+    const cacheKey = `tally_${governorAddress}`;
+    const cached = tallyCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      logger.info(`Using cached proposals for ${governorAddress} (${cached.data.length} proposals)`);
+      return cached.data;
+    }
+    
+    // Add delay to avoid rate limiting (wait 2 seconds between calls)
+    await delay(2000);
+    
+    // Now fetch the actual proposals for this governor - using exact working query from frontend
+    const proposalsQuery = `
+      query Proposals($input: ProposalsInput!) {
+        proposals(input: $input) {
+          nodes {
+            ... on Proposal {
+              id
+              metadata {
+                title
+                description
+              }
+              block {
+                number
+                timestamp
+              }
+              status
+              start {
+                __typename
+                ... on Block {
+                  number
+                  timestamp
+                }
+                ... on BlocklessTimestamp {
+                  timestamp
+                }
+              }
+              end {
+                __typename
+                ... on Block {
+                  number
+                  timestamp
+                }
+                ... on BlocklessTimestamp {
+                  timestamp
+                }
+              }
+              voteStats {
+                type
+                votesCount
+                votersCount
+                percent
+              }
+            }
+          }
+          pageInfo {
+            firstCursor
+            lastCursor
+            count
+          }
+        }
+      }
+    `;
+
+    const proposalsResponse = await fetch(TALLY_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(TALLY_API_KEY ? { 'Api-Key': TALLY_API_KEY } : {}),
+      },
+      body: JSON.stringify({ 
+        query: proposalsQuery,
+        variables: {
+          input: {
+            filters: { governorId: governor.id },
+            page: { limit: 100 },
+            sort: {
+              sortBy: 'id',
+              isDescending: true,
+            },
+          },
+        },
+      }),
+    });
+
+    if (!proposalsResponse.ok) {
+      const errorText = await proposalsResponse.text();
+      throw new Error(`HTTP error fetching proposals! Status: ${proposalsResponse.status}, Body: ${errorText}`);
+    }
+
+    const proposalsData = await proposalsResponse.json();
+
+    if (proposalsData.errors) {
+      throw new Error(`GraphQL error fetching proposals: ${JSON.stringify(proposalsData.errors)}`);
+    }
+
+    const proposals = proposalsData.data?.proposals?.nodes || [];
+    
+    // Filter only active proposals and normalize the data
+    const activeProposals = proposals
+      .filter((p: any) => p.status === 'ACTIVE')
+      .map((p: any) => ({
+        id: p.id,
+        title: p.metadata?.title || 'Untitled',
+        body: p.metadata?.description || '',
+        state: 'active',
+        // Convert timestamp strings to Unix timestamps (seconds)
+        end: p.end?.timestamp ? Math.floor(new Date(p.end.timestamp).getTime() / 1000) : 0,
+        endBlock: p.end?.timestamp ? Math.floor(new Date(p.end.timestamp).getTime() / 1000) : 0,
+      }));
+
+    logger.info(`Found ${activeProposals.length} active proposals out of ${proposals.length} total proposals`);
+    
+    // Store in cache
+    tallyCache.set(cacheKey, { data: activeProposals, timestamp: Date.now() });
+    
+    return activeProposals;
   } catch (error) {
     logger.error(`Failed to fetch Tally proposals for ${governorAddress}: ${error instanceof Error ? error.message : String(error)}`);
     return [];
