@@ -28,8 +28,6 @@ export const snapshotVote = async (signer: Address, snapshotVote: any) => {
     console.info(`wallet: ${wallet.address}`);
     console.info(`agent: ${agent.address}`);
 
-    // console.log(`snapshotVote.proposal: ${snapshotVote.proposal}, ${typeof snapshotVote.proposal}`);
-    console.info('234234')
     const proposalHex = "0x" + BigInt(String(snapshotVote.proposal).replace(/n$/, '')).toString(16);
     console.info('proposalHex: ', proposalHex)
     const choice = snapshotVote.choice.toString().replace(/n$/, '')

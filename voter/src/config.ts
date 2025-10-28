@@ -52,7 +52,9 @@ if (process.env.TEST_ENV === 'true') {
 export const FETCH_SCHEDULE = fetchSchedule;
 
 // How many hours before a proposal ends should we cast our vote
-export const VOTE_HOURS_BEFORE_END = parseInt(process.env.VOTE_HOURS_BEFORE_END || '6', 10);
+// Temporarily set to 100 hours for testing - will vote immediately on active proposals
+// export const VOTE_HOURS_BEFORE_END = parseInt(process.env.VOTE_HOURS_BEFORE_END || '6', 10);
+export const VOTE_HOURS_BEFORE_END = parseInt(process.env.VOTE_HOURS_BEFORE_END || '100', 10);
 
 // How often to check for pending votes (in milliseconds)
 export const VOTE_POLLER_INTERVAL = parseInt(process.env.VOTE_POLLER_INTERVAL || '60000', 10);

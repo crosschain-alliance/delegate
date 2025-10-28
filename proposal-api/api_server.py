@@ -2,6 +2,7 @@ import threading
 import time
 import datetime
 from flask import Flask, request, jsonify
+import requests
 
 from proposal_analyzer import analyze_proposals
 
@@ -96,6 +97,55 @@ def proposals_api():
         return jsonify({"error": f"Error processing request: {str(e)}"}), 500
 
     return jsonify(result)
+
+@app.route("/tally", methods=["POST", "OPTIONS"])
+def tally_proxy():
+    """Proxy endpoint for Tally GraphQL queries to avoid CORS issues."""
+    if request.method == "OPTIONS":
+        return "", 200
+    
+    try:
+        # Get the GraphQL query and variables from the request
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), 400
+        
+        query = data.get("query")
+        variables = data.get("variables", {})
+        
+        if not query:
+            return jsonify({"error": "Missing 'query' field"}), 400
+        
+        # Get Tally API key from environment
+        import os
+        tally_api_key = os.environ.get("TALLY_API_KEY")
+        if not tally_api_key:
+            return jsonify({"error": "Tally API key not configured"}), 500
+        
+        # Forward the request to Tally API
+        tally_url = "https://api.tally.xyz/query"
+        headers = {
+            "Content-Type": "application/json",
+            "Api-Key": tally_api_key,
+        }
+        
+        response = requests.post(
+            tally_url,
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=10
+        )
+        
+        # Return the Tally response
+        return response.json(), response.status_code
+    
+    except requests.exceptions.Timeout:
+        return jsonify({"error": "Tally API request timed out"}), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Error contacting Tally API: {str(e)}"}), 503
+    except Exception as e:
+        return jsonify({"error": f"Error processing request: {str(e)}"}), 500
+
 if __name__ == "__main__":
     # Start background cache refresher thread.
     threading.Thread(target=background_cache_refresher, daemon=True).start()
