@@ -20,6 +20,13 @@ export function startScheduler(): void {
 }
 
 /**
+ * Delay helper to add pauses between API calls
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
  * Main process to fetch proposals and schedule votes
  */
 export async function runFetchAndSchedule(): Promise<void> {
@@ -36,6 +43,8 @@ export async function runFetchAndSchedule(): Promise<void> {
       if (dao.source === 'tally' && dao.governorAddress) {
         logger.info(`Fetching Tally proposals for governor: ${dao.governorAddress}`);
         proposals = await fetchTallyProposals(dao.governorAddress);
+        // Add delay after Tally API calls to avoid rate limiting
+        await delay(2000);
       } else {
         // Default to snapshot or explicit snapshot source
         logger.info(`Fetching Snapshot proposals for space: ${dao.id}`);

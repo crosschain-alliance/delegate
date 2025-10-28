@@ -112,6 +112,14 @@ export async function fetchTallyProposals(governorAddress: string): Promise<Tall
       return [];
     }
 
+    // Check cache first to avoid any API calls
+    const cacheKey = `tally_${governorAddress}`;
+    const cached = tallyCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      logger.info(`Using cached proposals for ${governorAddress} (${cached.data.length} proposals, age: ${Math.round((Date.now() - cached.timestamp) / 1000)}s)`);
+      return cached.data;
+    }
+
     const query = `
       query {
         governor(input: {id: "eip155:42161:${governorAddress}"}) {
@@ -164,14 +172,6 @@ export async function fetchTallyProposals(governorAddress: string): Promise<Tall
     }
 
     logger.info(`Found governor: ${data.data.governor.name}`);
-    
-    // Check cache first
-    const cacheKey = `tally_${governorAddress}`;
-    const cached = tallyCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-      logger.info(`Using cached proposals for ${governorAddress} (${cached.data.length} proposals)`);
-      return cached.data;
-    }
     
     // Add delay to avoid rate limiting (wait 2 seconds between calls)
     await delay(2000);
@@ -278,7 +278,7 @@ export async function fetchTallyProposals(governorAddress: string): Promise<Tall
 
     logger.info(`Found ${activeProposals.length} active proposals out of ${proposals.length} total proposals`);
     
-    // Store in cache
+    // Store in cache (cacheKey already defined at top of function)
     tallyCache.set(cacheKey, { data: activeProposals, timestamp: Date.now() });
     
     return activeProposals;
