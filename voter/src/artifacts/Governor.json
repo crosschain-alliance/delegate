@@ -173,36 +173,39 @@
     "type": "function"
   },
   {
-    "indexed": true,
-    "internalType": "address",
-    "name": "voter",
-    "type": "address"
-  },
-  {
-    "indexed": false,
-    "internalType": "uint256",
-    "name": "proposalId",
-    "type": "uint256"
-  },
-  {
-    "indexed": false,
-    "internalType": "uint8",
-    "name": "support",
-    "type": "uint8"
-  },
-  {
-    "indexed": false,
-    "internalType": "uint256",
-    "name": "weight",
-    "type": "uint256"
-  },
-  {
-    "indexed": false,
-    "internalType": "string",
-    "name": "reason",
-    "type": "string"
-  },
-  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "voter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "proposalId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "support",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "weight",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      }
+    ],
     "name": "VoteCast",
     "type": "event"
   }

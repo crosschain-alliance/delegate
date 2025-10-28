@@ -51,7 +51,20 @@ export async function processProposalsForVoting(
           // If vote time has already passed but proposal hasn't ended, vote now
           if (currentTimeMs < proposalEndTimeMs) {
             logger.info(`  Vote time already passed, voting immediately for agent ${agent.name}`);
-            await castVote(proposal, agent.address, agent.privateKey);
+            
+            // Route to correct voting function based on source
+            if (source === 'tally') {
+              if (!governorAddress) {
+                throw new Error('Governor address required for Tally proposals');
+              }
+              await castTallyVote(proposal.id, governorAddress, agent.privateKey);
+            } else {
+              // Snapshot voting
+              if (!agent.userAddress) {
+                throw new Error(`User address not found for agent ${agent.name}`);
+              }
+              await castVote(proposal, agent.address, agent.userAddress);
+            }
           } else {
             logger.info(`  Proposal has already ended, skipping for agent ${agent.name}`);
           }

@@ -96,17 +96,24 @@ export const DAOS: DAOConfig[] = process.env.TEST_ENV === 'true'
       },
       {
         id: 'eip155:42161:0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9',
-        name: 'Arbitrum DAO (Treasury)',
+        name: 'Arbitrum DAO',
         defaultVote: 1,
         governorAddress: '0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9',
-        source: 'tally'
-      },
-      {
-        id: 'eip155:42161:0x789fC99093B09aD01C34DC7251D0C89ce743e5a4',
-        name: 'Arbitrum DAO (Security Council)',
-        defaultVote: 1,
-        governorAddress: '0x789fC99093B09aD01C34DC7251D0C89ce743e5a4',
-        source: 'tally'
+        source: 'tally',
+        subDaos: [
+          {
+            name: 'Arbitrum Core',
+            id: 'eip155:42161:0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9',
+            governorAddress: '0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9',
+            source: 'tally'
+          },
+          {
+            name: 'Arbitrum Treasury',
+            id: 'eip155:42161:0x789fC99093B09aD01C34DC7251D0C89ce743e5a4',
+            governorAddress: '0x789fC99093B09aD01C34DC7251D0C89ce743e5a4',
+            source: 'tally'
+          }
+        ]
       },
       {
         id: 'uniswapgovernance.eth',

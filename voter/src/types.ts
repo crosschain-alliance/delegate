@@ -50,4 +50,10 @@ export interface SnapshotProposal {
     strategy?: string; // Optional voting strategy
     governorAddress?: string; // Tally-specific: Governor contract address
     source?: 'snapshot' | 'tally'; // Data source for proposals (defaults to 'snapshot')
+    subDaos?: Array<{
+      name: string;
+      id: string;
+      governorAddress: string;
+      source: 'snapshot' | 'tally';
+    }>; // Optional sub-DAOs to aggregate proposals from
   }

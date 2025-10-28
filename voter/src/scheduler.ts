@@ -41,10 +41,21 @@ export async function runFetchAndSchedule(): Promise<void> {
       
       // Fetch proposals based on source type
       if (dao.source === 'tally' && dao.governorAddress) {
-        logger.info(`Fetching Tally proposals for governor: ${dao.governorAddress}`);
-        proposals = await fetchTallyProposals(dao.governorAddress);
-        // Add delay after Tally API calls to avoid rate limiting
-        await delay(2000);
+        // Check if this DAO has subDaos
+        if (dao.subDaos && dao.subDaos.length > 0) {
+          logger.info(`Fetching Tally proposals from ${dao.subDaos.length} sub-DAOs`);
+          // Fetch from all subDaos and aggregate
+          for (const subDao of dao.subDaos) {
+            logger.info(`Fetching proposals for ${subDao.name} (${subDao.governorAddress})`);
+            const subProposals = await fetchTallyProposals(subDao.governorAddress);
+            proposals.push(...subProposals);
+            await delay(2000); // Delay between each subDAO fetch
+          }
+        } else {
+          logger.info(`Fetching Tally proposals for governor: ${dao.governorAddress}`);
+          proposals = await fetchTallyProposals(dao.governorAddress);
+          await delay(2000);
+        }
       } else {
         // Default to snapshot or explicit snapshot source
         logger.info(`Fetching Snapshot proposals for space: ${dao.id}`);

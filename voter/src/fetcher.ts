@@ -263,9 +263,16 @@ export async function fetchTallyProposals(governorAddress: string): Promise<Tall
 
     const proposals = proposalsData.data?.proposals?.nodes || [];
     
-    // Filter only active proposals and normalize the data
+    // Log proposal statuses for debugging
+    if (proposals.length > 0) {
+      logger.info(`Proposal statuses: ${proposals.slice(0, 5).map((p: any) => `${p.metadata?.title?.substring(0, 30)}: ${p.status}`).join(', ')}`);
+    }
+    
+    // Filter active proposals - match frontend logic that treats multiple statuses as "active"
+    // Note: Tally API returns status in lowercase, so we need case-insensitive comparison
+    const activeStatuses = ['ACTIVE', 'QUEUED', 'PENDINGEXECUTION', 'CROSSCHAINQUEUED', 'CROSSCHAINPENDINGEXECUTION'];
     const activeProposals = proposals
-      .filter((p: any) => p.status === 'ACTIVE')
+      .filter((p: any) => activeStatuses.includes(p.status?.toUpperCase()))
       .map((p: any) => ({
         id: p.id,
         title: p.metadata?.title || 'Untitled',
@@ -278,12 +285,21 @@ export async function fetchTallyProposals(governorAddress: string): Promise<Tall
 
     logger.info(`Found ${activeProposals.length} active proposals out of ${proposals.length} total proposals`);
     
-    // Store in cache (cacheKey already defined at top of function)
-    tallyCache.set(cacheKey, { data: activeProposals, timestamp: Date.now() });
+    // Only cache if we got actual data (don't cache empty results from rate limit errors)
+    if (proposals.length > 0) {
+      tallyCache.set(cacheKey, { data: activeProposals, timestamp: Date.now() });
+      logger.info(`Cached ${activeProposals.length} active proposals for ${governorAddress}`);
+    } else {
+      logger.warn(`Not caching empty result for ${governorAddress} - likely no proposals exist`);
+    }
     
     return activeProposals;
   } catch (error) {
     logger.error(`Failed to fetch Tally proposals for ${governorAddress}: ${error instanceof Error ? error.message : String(error)}`);
+    // Clear any stale cache on error to allow retry
+    const cacheKey = `tally_${governorAddress}`;
+    tallyCache.delete(cacheKey);
+    logger.info(`Cleared cache for ${governorAddress} due to error`);
     return [];
   }
 }
