@@ -41,17 +41,17 @@ services:
     restart: always
 
   # Relayer service
-  relayer:
-    build:
-      context: ./relayer
-      dockerfile: Dockerfile
-    env_file: ./relayer/.env
-    restart: always
-    healthcheck:
-      test: ["CMD", "node", "-e", "process.exit(0)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # relayer:
+  #   build:
+  #     context: ./relayer
+  #     dockerfile: Dockerfile
+  #   env_file: ./relayer/.env
+  #   restart: always
+  #   healthcheck:
+  #     test: ["CMD", "node", "-e", "process.exit(0)"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
   # Proposal API service
   proposal-api:
@@ -65,15 +65,15 @@ services:
     restart: always
 
   # Test environment service for emulating snapshot.org
-  test-env:
-    build:
-      context: ./test-env
-      dockerfile: Dockerfile
-    ports:
-      - "5001:5001"
-    volumes:
-      - ./.env:/app/.env
-    restart: always
+  # test-env:
+  #   build:
+  #     context: ./test-env
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "5001:5001"
+  #   volumes:
+  #     - ./.env:/app/.env
+  #   restart: always
 
 volumes:
   mongo_data:

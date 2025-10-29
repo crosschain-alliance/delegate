@@ -11,10 +11,11 @@ contract SubscribeScript is Script {
         
         // Parameters for the subscribe call
         string memory spaceName = "vanilladao.eth";
+        address voter = 0xE6C2542904a67E1c87b1f76A8AbC949213b54414; // Add voter parameter
         address module = 0xFC67bC30E1577adf87d6CCdd8Ba6dda64bd2d956;
 
         vm.startBroadcast(pk);
-        DeleGate(target).subscribe(spaceName, module);
+        DeleGate(target).subscribe(spaceName, voter, module);
         vm.stopBroadcast();
     }
 

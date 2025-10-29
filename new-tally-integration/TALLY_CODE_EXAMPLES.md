@@ -777,10 +777,10 @@ export const tallyVote = async (signer: Address, tallyVote: any) => {
 
     const wallet = new ethers.Wallet(agent.privateKey, provider);
 
-    logger.info(`Submitting Tally vote from: ${wallet.address}`);
-    logger.info(`Governor: ${tallyVote.governorAddress}`);
-    logger.info(`Proposal ID: ${tallyVote.proposalId}`);
-    logger.info(`Support: ${tallyVote.support}`);
+    logger.debug(`Submitting Tally vote from: ${wallet.address}`);
+    logger.debug(`Governor: ${tallyVote.governorAddress}`);
+    logger.debug(`Proposal ID: ${tallyVote.proposalId}`);
+    logger.debug(`Support: ${tallyVote.support}`);
 
     const governorContract = new ethers.Contract(
       tallyVote.governorAddress,
@@ -794,7 +794,7 @@ export const tallyVote = async (signer: Address, tallyVote: any) => {
       tallyVote.support
     );
 
-    logger.info(`Tally vote transaction submitted: ${tx.hash}`);
+    logger.debug(`Tally vote transaction submitted: ${tx.hash}`);
 
     // Wait for confirmation
     const receipt = await tx.wait();
@@ -836,7 +836,7 @@ export async function watchTallyEvents(): Promise<void> {
             logger.info(`Received Tally vote event:`, args);
 
             if (args) {
-              logger.info(`Sender: ${args.sender}`);
+              logger.debug(`Sender: ${args.sender}`);
               tallyVote(args.sender, args.vote);
             }
           } catch (error) {
@@ -850,7 +850,7 @@ export async function watchTallyEvents(): Promise<void> {
       },
     });
 
-    logger.info('Tally event watcher started successfully');
+    logger.debug('Tally event watcher started successfully');
     return Promise.resolve();
   } catch (error) {
     logger.error(
@@ -869,7 +869,7 @@ export function stopTallyEventWatcher(): void {
   if (eventWatcher) {
     eventWatcher();
     eventWatcher = null;
-    logger.info('Tally event watcher stopped');
+    logger.debug('Tally event watcher stopped');
   }
 }
 ```
@@ -907,7 +907,7 @@ export async function fetchTallyProposals(
     const result = await fetchAllTallyProposals(governorId, 100);
     const proposals = result.proposals || [];
 
-    logger.info(`Fetched ${proposals.length} Tally proposals`);
+    logger.debug(`Fetched ${proposals.length} Tally proposals`);
 
     return proposals.map((p: any) => ({
       id: p.id,

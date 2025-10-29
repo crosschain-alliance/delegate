@@ -16,7 +16,7 @@ export function startScheduler(): void {
   // Schedule regular runs according to cron pattern
   cron.schedule(FETCH_SCHEDULE, runFetchAndSchedule);
   
-  logger.info(`Scheduler started with cron pattern: ${FETCH_SCHEDULE}`);
+  logger.debug(`Scheduler started with cron pattern: ${FETCH_SCHEDULE}`);
 }
 
 /**
@@ -30,12 +30,12 @@ function delay(ms: number): Promise<void> {
  * Main process to fetch proposals and schedule votes
  */
 export async function runFetchAndSchedule(): Promise<void> {
-  logger.info('Starting proposal fetch and vote scheduling process');
+  logger.debug('Starting proposal fetch and vote scheduling process');
   
   // Process all configured DAOs (both snapshot and tally)
   for (const dao of DAOS) {
     try {
-      logger.info(`Processing DAO: ${dao.name} (${dao.id})`);
+      logger.info(`Processing DAO: ${dao.name} (${dao.id} on ${dao.source})`);
       
       let proposals: any[] = [];
       
@@ -58,7 +58,7 @@ export async function runFetchAndSchedule(): Promise<void> {
         }
       } else {
         // Default to snapshot or explicit snapshot source
-        logger.info(`Fetching Snapshot proposals for space: ${dao.id}`);
+        logger.debug(`Fetching Snapshot proposals for space: ${dao.id}`);
         proposals = await fetchProposals(dao.id);
       }
       
@@ -70,14 +70,16 @@ export async function runFetchAndSchedule(): Promise<void> {
       logger.info(`Found ${proposals.length} proposals for ${dao.name}`);
       
       // Get all agents for this space to save vote details for each user
+      logger.warn(`Fetching agents for space: ${dao.id}`);
       const agentsForSpace = await getAgentsForSpace(dao.id);
-      const userAddresses = [...new Set(agentsForSpace.map(a => a.agent.userAddress).filter(Boolean))];
+      logger.warn(agentsForSpace.length);
+      const agentAddresses = [...new Set(agentsForSpace.map(a => a.agent.address).filter(Boolean))];
       
-      logger.info(`Found ${userAddresses.length} unique users for space ${dao.id}`);
+      logger.info(`Found ${agentAddresses.length} unique agents for space ${dao.id}`);
       
-      // Process vote details for each user
-      for (const userAddress of userAddresses) {
-        if (!userAddress) continue;
+      // Process vote details for each agent
+      for (const agentAddress of agentAddresses) {
+        if (!agentAddress) continue;
         
         for (const proposal of proposals) {
           // Normalize proposal data between Snapshot and Tally formats
@@ -91,7 +93,7 @@ export async function runFetchAndSchedule(): Promise<void> {
           try {
             // Check if proposal has changed
             const hasChanged = await hasProposalChanged(
-              userAddress,
+              agentAddress,
               normalizedProposal.id,
               normalizedProposal.body,
               normalizedProposal.end
@@ -123,7 +125,7 @@ export async function runFetchAndSchedule(): Promise<void> {
               
               // Save vote details
               await upsertVoteDetails(
-                userAddress,
+                agentAddress,
                 normalizedProposal.id,
                 dao.id,
                 normalizedProposal.title,
@@ -133,12 +135,12 @@ export async function runFetchAndSchedule(): Promise<void> {
                 aiVoteChoice
               );
               
-              logger.info(`Saved vote details for user ${userAddress}, proposal ${normalizedProposal.id}`);
+              logger.info(`Saved vote details for agent ${agentAddress}, proposal ${normalizedProposal.id}`);
             } else {
-              logger.info(`Proposal ${normalizedProposal.id} unchanged for user ${userAddress}, skipping update`);
+              logger.info(`Proposal ${normalizedProposal.id} unchanged for agent ${agentAddress}, skipping update`);
             }
           } catch (error) {
-            logger.error(`Error processing proposal ${normalizedProposal.id} for user ${userAddress}: ${error instanceof Error ? error.message : String(error)}`);
+            logger.error(`Error processing proposal ${normalizedProposal.id} for agent ${agentAddress}: ${error instanceof Error ? error.message : String(error)}`);
           }
         }
       }

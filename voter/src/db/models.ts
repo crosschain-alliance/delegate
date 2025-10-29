@@ -37,6 +37,7 @@ export interface IScheduledVote extends Document {
 
 export interface IVoteDetails extends Document {
   userAddress: string;        // Wallet address of the user
+  agentAddress: string;       // Agent address that will cast the vote
   proposalId: string;         // Snapshot proposal ID
   spaceId: string;            // DAO space ID
   proposalTitle: string;      // Proposal title
@@ -112,6 +113,7 @@ ScheduledVoteSchema.index({ status: 1, scheduledTime: 1 });
 const VoteDetailsSchema = new Schema<IVoteDetails>(
   {
     userAddress: { type: String, required: true, index: true },
+    agentAddress: { type: String, required: true, index: true },
     proposalId: { type: String, required: true, index: true },
     spaceId: { type: String, required: true, index: true },
     proposalTitle: { type: String, required: true },

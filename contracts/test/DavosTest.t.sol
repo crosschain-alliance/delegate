@@ -64,6 +64,7 @@ contract DavosTest is Test {
 
     deleGate.subscribe(
       space,
+      voter,
       dummyModule
     );
 

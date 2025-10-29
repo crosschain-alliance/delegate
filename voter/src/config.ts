@@ -74,19 +74,22 @@ export const DAOS: DAOConfig[] = process.env.TEST_ENV === 'true'
       {
         id: 'DAO_test',
         name: 'DAO Test',
-        defaultVote: 1
+        defaultVote: 1,
+        source: 'snapshot',
       }
     ]
   : [
       {
         id: 'balancer.eth',
         name: 'Balancer',
-        defaultVote: 1 // Vote for first option by default
+        defaultVote: 1, // Vote for first option by default
+        source: 'snapshot',
       },
       {
-        id: 'aave.eth',
+        id: 'aavedao.eth',
         name: 'Aave',
-        defaultVote: 1 // Vote for first option by default
+        defaultVote: 1, // Vote for first option by default
+        source: 'snapshot',
       },
       {
         id: 'arbitrumfoundation.eth',
@@ -118,6 +121,7 @@ export const DAOS: DAOConfig[] = process.env.TEST_ENV === 'true'
       {
         id: 'uniswapgovernance.eth',
         name: 'Uniswap',
-        defaultVote: 1 // Vote for first option by default
+        defaultVote: 1, // Vote for first option by default
+        source: 'snapshot'
       }
     ];

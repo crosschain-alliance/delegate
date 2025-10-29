@@ -18,7 +18,7 @@ dotenv.config();
  */
 async function main() {
   try {
-    logger.info('Davos Snapshot Voter service starting...');
+    logger.debug('Davos Snapshot Voter service starting...');
     
     // Initialize database
     await initializeDatabase(MONGODB_URI);
@@ -32,13 +32,13 @@ async function main() {
     // Start API server
     startApiServer(API_PORT);
     
-    // Start snapshot executor to watch for on-chain events
-    await watchSnapshotEvents();
+    // Start snapshot executor to watch for on-chain events - disabled: Voting via scheduler
+    // await watchSnapshotEvents();
     
-    // Tally executor not needed - scheduler votes directly on Governor contract
+    // Tally executor not needed - disabled: Voting via scheduler
     // await watchTallyEvents();
     
-    logger.info('Davos Voter service started successfully');
+    logger.debug('Davos Voter service started successfully');
   } catch (error) {
     logger.error(`Failed to start service: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);

@@ -898,17 +898,17 @@ app.get('/api/vote-details/:userAddress', async (req, res) => {
 });
 
 /**
- * GET /api/vote-details/:userAddress/:proposalId - Get specific vote details
+ * GET /api/vote-details/:agentAddress/:proposalId - Get specific vote details
  */
-app.get('/api/vote-details/:userAddress/:proposalId', async (req, res) => {
+app.get('/api/vote-details/:agentAddress/:proposalId', async (req, res) => {
   try {
-    const { userAddress, proposalId } = req.params;
+    const { agentAddress, proposalId } = req.params;
     
-    if (!userAddress || !proposalId) {
-      return res.status(400).json({ error: 'User address and proposal ID are required' });
+    if (!agentAddress || !proposalId) {
+      return res.status(400).json({ error: 'Agent address and proposal ID are required' });
     }
     
-    const voteDetails = await getVoteDetails(userAddress, proposalId);
+    const voteDetails = await getVoteDetails(agentAddress, proposalId);
     
     if (!voteDetails) {
       return res.status(404).json({ error: 'Vote details not found' });
@@ -935,7 +935,7 @@ app.get('/api/vote-details/:userAddress/:proposalId', async (req, res) => {
 app.post('/api/vote-details', async (req, res) => {
   try {
     const {
-      userAddress,
+      agentAddress,
       proposalId,
       spaceId,
       proposalTitle,
@@ -945,15 +945,15 @@ app.post('/api/vote-details', async (req, res) => {
       aiVoteChoice
     } = req.body;
     
-    if (!userAddress || !proposalId || !spaceId || !proposalTitle || !proposalText || 
+    if (!agentAddress || !proposalId || !spaceId || !proposalTitle || !proposalText || 
         lastUpdated === undefined || !aiResponse || !aiVoteChoice) {
       return res.status(400).json({ 
-        error: 'Missing required fields: userAddress, proposalId, spaceId, proposalTitle, proposalText, lastUpdated, aiResponse, aiVoteChoice' 
+        error: 'Missing required fields: agentAddress, proposalId, spaceId, proposalTitle, proposalText, lastUpdated, aiResponse, aiVoteChoice' 
       });
     }
     
     const voteDetails = await upsertVoteDetails(
-      userAddress,
+      agentAddress,
       proposalId,
       spaceId,
       proposalTitle,
@@ -983,22 +983,22 @@ app.post('/api/vote-details', async (req, res) => {
 });
 
 /**
- * PUT /api/vote-details/:userAddress/:proposalId/vote - Update user vote choice
+ * PUT /api/vote-details/:agentAddress/:proposalId/vote - Update agent vote choice
  */
-app.put('/api/vote-details/:userAddress/:proposalId/vote', async (req, res) => {
+app.put('/api/vote-details/:agentAddress/:proposalId/vote', async (req, res) => {
   try {
-    const { userAddress, proposalId } = req.params;
-    const { userVoteChoice } = req.body;
+    const { agentAddress, proposalId } = req.params;
+    const { agentVoteChoice } = req.body;
     
-    if (!userAddress || !proposalId) {
-      return res.status(400).json({ error: 'User address and proposal ID are required' });
+    if (!agentAddress || !proposalId) {
+      return res.status(400).json({ error: 'Agent address and proposal ID are required' });
     }
     
-    if (!userVoteChoice || !['yes', 'no'].includes(userVoteChoice)) {
-      return res.status(400).json({ error: 'Valid userVoteChoice (yes/no) is required' });
+    if (!agentVoteChoice || !['yes', 'no'].includes(agentVoteChoice)) {
+      return res.status(400).json({ error: 'Valid agentVoteChoice (yes/no) is required' });
     }
     
-    const success = await updateUserVote(userAddress, proposalId, userVoteChoice);
+    const success = await updateUserVote(agentAddress, proposalId, agentVoteChoice);
     
     if (!success) {
       return res.status(404).json({ error: 'Vote details not found or update failed' });

@@ -56,8 +56,8 @@ export async function fetchProposals(spaceId: string): Promise<SnapshotProposal[
       }
     `;
 
-    logger.info(`Fetching proposals for DAO: ${spaceId}`);
-    logger.info(`Using GraphQL endpoint: ${graphqlUrl}`);
+    logger.debug(`Fetching proposals for DAO: ${spaceId}`);
+    logger.debug(`Using GraphQL endpoint: ${graphqlUrl}`);
     
     const response = await fetch(graphqlUrl, {
       method: 'POST',

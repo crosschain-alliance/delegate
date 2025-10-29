@@ -49,7 +49,7 @@ export interface SnapshotProposal {
     defaultVote: number; // Default voting choice (1-based index)
     strategy?: string; // Optional voting strategy
     governorAddress?: string; // Tally-specific: Governor contract address
-    source?: 'snapshot' | 'tally'; // Data source for proposals (defaults to 'snapshot')
+    source: 'snapshot' | 'tally'; // Data source for proposals (defaults to 'snapshot')
     subDaos?: Array<{
       name: string;
       id: string;

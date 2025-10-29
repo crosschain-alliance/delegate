@@ -62,7 +62,7 @@ let eventWatcher: any = null;
  * Watch for snapshot vote events from the Keyring Gateway contract
  */
 export async function watchSnapshotEvents(): Promise<void> {
-  logger.info(`Starting snapshot event watcher on ${RPC_URL}\nGateway address: ${KEYRING_GATEWAY_SEPOLIA}`);
+  logger.debug(`Starting snapshot event watcher on ${RPC_URL}\nGateway address: ${KEYRING_GATEWAY_SEPOLIA}`);
   
   try {
     eventWatcher = publicClient.watchContractEvent({
@@ -88,7 +88,7 @@ export async function watchSnapshotEvents(): Promise<void> {
       },
     });
     
-    logger.info('Snapshot event watcher started successfully');
+    logger.debug('Snapshot event watcher started successfully');
     return Promise.resolve();
   } catch (error) {
     logger.error(`Failed to start snapshot event watcher: ${error instanceof Error ? error.message : String(error)}`);
@@ -101,7 +101,7 @@ export async function watchSnapshotEvents(): Promise<void> {
  */
 export function stopSnapshotEvents(): void {
   if (eventWatcher) {
-    logger.info('Stopping snapshot event watcher');
+    logger.debug('Stopping snapshot event watcher');
     eventWatcher();
     eventWatcher = null;
   }

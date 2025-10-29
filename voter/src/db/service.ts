@@ -10,7 +10,7 @@ import { createHash } from 'crypto';
 export async function initializeDatabase(connectionString: string): Promise<void> {
   try {
     await mongoose.connect(connectionString);
-    logger.info('Database connection established');
+    logger.debug('Database connection established');
   } catch (error) {
     logger.error(`Database connection failed: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
@@ -512,10 +512,10 @@ export async function getVoteStatistics(): Promise<{
 // ============================================================================
 
 /**
- * Create or update vote details for a user and proposal
+ * Create or update vote details for an agent and proposal
  */
 export async function upsertVoteDetails(
-  userAddress: string,
+  agentAddress: string,
   proposalId: string,
   spaceId: string,
   proposalTitle: string,
@@ -528,8 +528,9 @@ export async function upsertVoteDetails(
     const proposalTextHash = createHash('sha256').update(proposalText).digest('hex');
     
     const voteDetails = await VoteDetails.findOneAndUpdate(
-      { userAddress, proposalId },
+      { agentAddress, proposalId },
       {
+        agentAddress,
         spaceId,
         proposalTitle,
         proposalText,
@@ -546,8 +547,8 @@ export async function upsertVoteDetails(
         setDefaultsOnInsert: true
       }
     );
-    
-    logger.info(`Upserted vote details for user ${userAddress}, proposal ${proposalId}`);
+
+    logger.info(`Upserted vote details for agent ${agentAddress}, proposal ${proposalId}`);
     return voteDetails;
   } catch (error) {
     logger.error(`Failed to upsert vote details: ${error instanceof Error ? error.message : String(error)}`);
@@ -556,14 +557,14 @@ export async function upsertVoteDetails(
 }
 
 /**
- * Get vote details for a specific user and proposal
+ * Get vote details for a specific agent and proposal
  */
 export async function getVoteDetails(
-  userAddress: string,
+  agentAddress: string,
   proposalId: string
 ): Promise<IVoteDetails | null> {
   try {
-    return await VoteDetails.findOne({ userAddress, proposalId });
+    return await VoteDetails.findOne({ agentAddress, proposalId });
   } catch (error) {
     logger.error(`Failed to get vote details: ${error instanceof Error ? error.message : String(error)}`);
     return null;
@@ -586,13 +587,13 @@ export async function getUserVoteDetails(userAddress: string): Promise<IVoteDeta
  * Update user vote choice
  */
 export async function updateUserVote(
-  userAddress: string,
+  agentAddress: string,
   proposalId: string,
   userVoteChoice: 'yes' | 'no'
 ): Promise<boolean> {
   try {
     const result = await VoteDetails.updateOne(
-      { userAddress, proposalId },
+      { agentAddress, proposalId },
       { 
         userVoteChoice,
         status: 'voted',
@@ -601,12 +602,12 @@ export async function updateUserVote(
     );
     
     if (result.modifiedCount > 0) {
-      logger.info(`Updated user vote for ${userAddress}, proposal ${proposalId} to ${userVoteChoice}`);
+      logger.info(`Updated agent vote for ${agentAddress}, proposal ${proposalId} to ${userVoteChoice}`);
       return true;
     }
     return false;
   } catch (error) {
-    logger.error(`Failed to update user vote: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(`Failed to update agent vote: ${error instanceof Error ? error.message : String(error)}`);
     return false;
   }
 }
@@ -615,13 +616,13 @@ export async function updateUserVote(
  * Check if proposal has changed since last check
  */
 export async function hasProposalChanged(
-  userAddress: string,
+  agentAddress: string,
   proposalId: string,
   currentText: string,
   currentTimestamp: number
 ): Promise<boolean> {
   try {
-    const existingVote = await VoteDetails.findOne({ userAddress, proposalId });
+    const existingVote = await VoteDetails.findOne({ agentAddress, proposalId });
     if (!existingVote) {
       return true; // No existing vote, so it's "changed"
     }
@@ -633,7 +634,7 @@ export async function hasProposalChanged(
     const timestampChanged = existingVote.lastUpdated !== currentTimestamp;
     
     if (textChanged || timestampChanged) {
-      logger.info(`Proposal ${proposalId} changed for user ${userAddress}: text=${textChanged}, timestamp=${timestampChanged}`);
+      logger.info(`Proposal ${proposalId} changed for agent ${agentAddress}: text=${textChanged}, timestamp=${timestampChanged}`);
       return true;
     }
     
@@ -648,12 +649,12 @@ export async function hasProposalChanged(
  * Update proposal check timestamp
  */
 export async function updateProposalCheck(
-  userAddress: string,
+  agentAddress: string,
   proposalId: string
 ): Promise<boolean> {
   try {
     const result = await VoteDetails.updateOne(
-      { userAddress, proposalId },
+      { agentAddress, proposalId },
       { lastChecked: new Date() }
     );
     return result.modifiedCount > 0;
