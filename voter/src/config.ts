@@ -51,22 +51,17 @@ if (process.env.TEST_ENV === 'true') {
 
 export const FETCH_SCHEDULE = fetchSchedule;
 
-// How many hours before a proposal ends should we cast our vote
-// Temporarily set to 100 hours for testing - will vote immediately on active proposals
-// export const VOTE_HOURS_BEFORE_END = parseInt(process.env.VOTE_HOURS_BEFORE_END || '6', 10);
-export const VOTE_HOURS_BEFORE_END = parseInt(process.env.VOTE_HOURS_BEFORE_END || '100', 10);
+// How many minutes before a proposal ends should we cast our vote
+export const VOTE_MIN_BEFORE_END = parseInt(process.env.VOTE_MIN_BEFORE_END || '689', 10);
 
 // How often to check for pending votes (in milliseconds)
 export const VOTE_POLLER_INTERVAL = parseInt(process.env.VOTE_POLLER_INTERVAL || '60000', 10);
 
 // MongoDB connection URI
-export const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://davos:voterpassword@mongodb:27017/davos-voter?authSource=admin';
+export const MONGODB_URI = process.env.MONGODB_URI || '';
 
 // API server port
 export const API_PORT = parseInt(process.env.API_PORT || '3000', 10);
-
-// Legacy setting - keeping for backward compatibility
-export const VOTE_THRESHOLD_MINUTES = 720; // 12 hours before end
 
 // List of DAOs to monitor
 export const DAOS: DAOConfig[] = process.env.TEST_ENV === 'true'
@@ -74,7 +69,7 @@ export const DAOS: DAOConfig[] = process.env.TEST_ENV === 'true'
       {
         id: 'DAO_test',
         name: 'DAO Test',
-        defaultVote: 1,
+        defaultVote: 0,
         source: 'snapshot',
       }
     ]
@@ -82,25 +77,37 @@ export const DAOS: DAOConfig[] = process.env.TEST_ENV === 'true'
       {
         id: 'balancer.eth',
         name: 'Balancer',
-        defaultVote: 1, // Vote for first option by default
+        defaultVote: 0,
         source: 'snapshot',
       },
       {
         id: 'aavedao.eth',
         name: 'Aave',
-        defaultVote: 1, // Vote for first option by default
+        defaultVote: 0,
         source: 'snapshot',
       },
       {
         id: 'arbitrumfoundation.eth',
         name: 'Arbitrum',
-        defaultVote: 1, // Vote for first option by default
+        defaultVote: 0,
+        source: 'snapshot'
+      },
+      {
+        id: 'gnosis.eth',
+        name: 'Gnosis',
+        defaultVote: 0,
+        source: 'snapshot'
+      },
+      {
+        id: 'lido-snapshot.eth',
+        name: 'Lido',
+        defaultVote: 0,
         source: 'snapshot'
       },
       {
         id: 'eip155:42161:0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9',
         name: 'Arbitrum DAO',
-        defaultVote: 1,
+        defaultVote: 0,
         governorAddress: '0xf07DeD9dC292157749B6Fd268E37DF6EA38395B9',
         source: 'tally',
         subDaos: [
@@ -121,7 +128,32 @@ export const DAOS: DAOConfig[] = process.env.TEST_ENV === 'true'
       {
         id: 'uniswapgovernance.eth',
         name: 'Uniswap',
-        defaultVote: 1, // Vote for first option by default
+        defaultVote: 0, // Vote for first option by default
         source: 'snapshot'
-      }
+      },
+      {
+        id: 'eip155:1:0x408ED6354d4973f66138C91495F2f2FCbd8724C3',
+        name: 'Uniswap DAO',
+        defaultVote: 0,
+        governorAddress: '0x408ED6354d4973f66138C91495F2f2FCbd8724C3',
+        source: 'tally',
+      },
+      {
+        id: 'polygonvalidators.eth',
+        name: 'Polygon Validators',
+        defaultVote: 0,
+        source: 'snapshot'
+      },
+      {
+        id: 'qidao.eth',
+        name: 'Qi Dao',
+        defaultVote: 0,
+        source: 'snapshot'
+      },
+      {
+        id: 'quickvote.eth',
+        name: 'QuickVote',
+        defaultVote: 0,
+        source: 'snapshot'
+      },
     ];

@@ -8,6 +8,7 @@ import { startApiServer } from './api/server';
 import { MONGODB_URI, API_PORT } from './config';
 import logger from './logger';
 import { watchSnapshotEvents, stopSnapshotEvents } from './snapshot_executor';
+import { startEthosWatcher } from './ethosWatcher';
 // Tally executor not needed - scheduler votes directly
 // import { watchTallyEvents, stopTallyEvents } from './tally_executor';
 
@@ -31,6 +32,9 @@ async function main() {
     
     // Start API server
     startApiServer(API_PORT);
+    
+    // Start ethos watcher to automatically refresh vote details when users update their ethos
+    startEthosWatcher();
     
     // Start snapshot executor to watch for on-chain events - disabled: Voting via scheduler
     // await watchSnapshotEvents();

@@ -1,7 +1,7 @@
 import { SnapshotProposal, TallyProposal, TallyVoteParams } from './types';
 import snapshot from '@snapshot-labs/snapshot.js';
-import { RPC_URL, VOTE_HOURS_BEFORE_END, DELEGATE_CONTRACT_ADDRESS, VOTE_POLLER_INTERVAL } from './config';
-import { getAgentsForSpace, scheduleVoteInDb, getPendingVotes, markVoteCompleted, markVoteFailed, getAgentByKmsAddress, getAgentByAddress, getVoteDetails } from './db/service';
+import { RPC_URL, DELEGATE_CONTRACT_ADDRESS, VOTE_POLLER_INTERVAL, VOTE_MIN_BEFORE_END } from './config';
+import { getAgentsForSpace, scheduleVoteInDb, getPendingVotes, markVoteCompleted, markVoteFailed, getVoteDetailsByAgentAddress } from './db/service';
 import logger from './logger';
 import { IAgent, IScheduledVote } from './db/models';
 import { publicClient, walletClient, relayerAccount } from './lib/utils';
@@ -59,10 +59,10 @@ export async function processProposalsForVoting(
   
   for (const proposal of proposals) {
     try {
-      // Calculate when to vote (VOTE_HOURS_BEFORE_END hours before proposal ends)
+      // Calculate when to vote (VOTE_MIN_BEFORE_END minutes before proposal ends)
       const proposalEndTimeMs = proposal.end * 1000; // Convert to milliseconds
-      logger.info(`Hours before end to vote: ${VOTE_HOURS_BEFORE_END}`);
-      const voteTimeMs = proposalEndTimeMs - (VOTE_HOURS_BEFORE_END * 60 * 60 * 1000);
+      logger.info(`Minutes before end to vote: ${VOTE_MIN_BEFORE_END}`);
+      const voteTimeMs = proposalEndTimeMs - (VOTE_MIN_BEFORE_END * 60 * 1000);
       const currentTimeMs = Date.now();
       
       // Format dates for logging
@@ -193,19 +193,10 @@ export async function castSnapshotVote(
 ): Promise<void> {
   try {
     const voteType = 'single-choice'; // TODO
-    const voteDetails = await getVoteDetails(agentAddress, proposal.id);
+    const voteDetails = await getVoteDetailsByAgentAddress(agentAddress, proposal.id);
 
     if (!voteDetails) {
       throw new Error(`Vote details not found for agent ${agentAddress} and proposal ${proposal.id}`);
-    }
-
-    // Check agent balance on Sepolia before attempting to vote
-    const balance = await provider.getBalance(agentAddress);
-    const balanceInEth = ethers.utils.formatEther(balance);
-    logger.info(`Agent ${agentAddress} balance on Sepolia: ${balanceInEth} ETH`);
-
-    if (balance.lt(ethers.utils.parseEther('0.001'))) {
-      throw new Error(`Agent ${agentAddress} has insufficient funds (${balanceInEth} ETH). Minimum required: 0.001 ETH for gas fees. Please fund the agent wallet on Sepolia.`);
     }
 
     const wallet = new ethers.Wallet(agentPrivateKey, provider);
@@ -254,7 +245,7 @@ export async function castTallyVote(
   try {
     logger.info(`Casting Tally vote for proposal ${proposalId} on governor ${governorAddress}`);
 
-    const voteDetails = await getVoteDetails(agentAddress, proposalId);
+    const voteDetails = await getVoteDetailsByAgentAddress(agentAddress, proposalId);
 
     if (!voteDetails) {
       throw new Error(`Vote details not found for agent ${agentAddress} and proposal ${proposalId}`);

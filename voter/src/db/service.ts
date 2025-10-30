@@ -3,6 +3,10 @@ import { Agent, AgentSpace, IAgent, IAgentSpace, ScheduledVote, IScheduledVote, 
 import logger from '../logger';
 import { SnapshotProposal } from '../types';
 import { createHash } from 'crypto';
+import { publicClient } from '../lib/utils';
+import DeleGateABI from '../artifacts/DeleGate.json';
+import { DELEGATE_CONTRACT_ADDRESS } from '../config';
+import { fetchOpenAIResponse } from '../ai-parser';
 
 /**
  * Initialize the database connection
@@ -522,7 +526,9 @@ export async function upsertVoteDetails(
   proposalText: string,
   lastUpdated: number,
   aiResponse: string,
-  aiVoteChoice: 'yes' | 'no'
+  aiVoteChoice: 'yes' | 'no',
+  userEthos: string,
+  userAddress?: string
 ): Promise<IVoteDetails | null> {
   try {
     const proposalTextHash = createHash('sha256').update(proposalText).digest('hex');
@@ -531,6 +537,7 @@ export async function upsertVoteDetails(
       { agentAddress, proposalId },
       {
         agentAddress,
+        userAddress: userAddress || '',
         spaceId,
         proposalTitle,
         proposalText,
@@ -538,6 +545,7 @@ export async function upsertVoteDetails(
         lastUpdated,
         aiResponse,
         aiVoteChoice,
+        userEthos,
         status: 'pending',
         lastChecked: new Date()
       },
@@ -559,7 +567,7 @@ export async function upsertVoteDetails(
 /**
  * Get vote details for a specific agent and proposal
  */
-export async function getVoteDetails(
+export async function getVoteDetailsByAgentAddress(
   agentAddress: string,
   proposalId: string
 ): Promise<IVoteDetails | null> {
@@ -572,11 +580,46 @@ export async function getVoteDetails(
 }
 
 /**
- * Get all vote details for a user
+ * Get vote details for a user's agent and proposal
+ * This finds the first active agent for the user and returns their vote details
+ */
+export async function getVoteDetailsByUserAddress(
+  userAddress: string,
+  proposalId: string
+): Promise<IVoteDetails | null> {
+  try {
+    const agents = await getAgentsByUserAddress(userAddress);
+    
+    if (agents.length === 0) {
+      logger.warn(`No agents found for user ${userAddress}`);
+      return null;
+    }
+    
+    // Use the first agent if multiple exist
+    const agentAddress = agents[0].address;
+    return await VoteDetails.findOne({ agentAddress, proposalId });
+  } catch (error) {
+    logger.error(`Failed to get vote details by user address: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Get all vote details for a user's agents
  */
 export async function getUserVoteDetails(userAddress: string): Promise<IVoteDetails[]> {
   try {
-    return await VoteDetails.find({ userAddress }).sort({ createdAt: -1 });
+    const agents = await getAgentsByUserAddress(userAddress);
+    
+    if (agents.length === 0) {
+      logger.info(`No agents found for user ${userAddress}`);
+      return [];
+    }
+    
+    const agentAddresses = agents.map(agent => agent.address);
+    return await VoteDetails.find({ 
+      agentAddress: { $in: agentAddresses } 
+    }).sort({ createdAt: -1 });
   } catch (error) {
     logger.error(`Failed to get user vote details: ${error instanceof Error ? error.message : String(error)}`);
     return [];
@@ -584,7 +627,7 @@ export async function getUserVoteDetails(userAddress: string): Promise<IVoteDeta
 }
 
 /**
- * Update user vote choice
+ * Update agent vote choice
  */
 export async function updateUserVote(
   agentAddress: string,
@@ -617,6 +660,7 @@ export async function updateUserVote(
  */
 export async function hasProposalChanged(
   agentAddress: string,
+  userEthos: string,
   proposalId: string,
   currentText: string,
   currentTimestamp: number
@@ -630,11 +674,12 @@ export async function hasProposalChanged(
     const currentTextHash = createHash('sha256').update(currentText).digest('hex');
     
     // Check if text hash or timestamp changed
+    const ethosChanged = existingVote.userEthos !== userEthos;
     const textChanged = existingVote.proposalTextHash !== currentTextHash;
     const timestampChanged = existingVote.lastUpdated !== currentTimestamp;
-    
-    if (textChanged || timestampChanged) {
-      logger.info(`Proposal ${proposalId} changed for agent ${agentAddress}: text=${textChanged}, timestamp=${timestampChanged}`);
+
+    if (textChanged || timestampChanged || ethosChanged) {
+      logger.info(`Proposal ${proposalId} vote changed for agent ${agentAddress}: text=${textChanged}, timestamp=${timestampChanged}, ethos=${ethosChanged}`);
       return true;
     }
     
@@ -665,20 +710,151 @@ export async function updateProposalCheck(
 }
 
 /**
- * Mark vote as expired
+ * Mark vote as expired for an agent
  */
 export async function markVoteExpired(
-  userAddress: string,
+  agentAddress: string,
   proposalId: string
 ): Promise<boolean> {
   try {
     const result = await VoteDetails.updateOne(
-      { userAddress, proposalId },
+      { agentAddress, proposalId },
       { status: 'expired', updatedAt: new Date() }
     );
     return result.modifiedCount > 0;
   } catch (error) {
     logger.error(`Failed to mark vote expired: ${error instanceof Error ? error.message : String(error)}`);
     return false;
+  }
+}
+
+/**
+ * Get all pending vote details for an agent to regenerate AI recommendations
+ * @param agentAddress The agent address
+ * @returns Array of pending vote details
+ */
+export async function getPendingVoteDetailsForAgent(agentAddress: string): Promise<IVoteDetails[]> {
+  try {
+    return await VoteDetails.find({ 
+      agentAddress, 
+      status: 'pending' 
+    }).sort({ createdAt: -1 });
+  } catch (error) {
+    logger.error(`Failed to get pending vote details for agent: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Refresh vote details for all agents belonging to a user.
+ * This will use the provided ethos or fetch the latest on-chain ethos for the user and regenerate AI responses
+ * for any pending vote details where the stored ethos differs from the provided/on-chain ethos
+ * or where the aiResponse is missing.
+ *
+ * @param userAddress The Ethereum address of the user
+ * @param providedEthos Optional ethos string from event watcher (avoids contract read)
+ * @returns summary containing number updated and details
+ */
+export async function refreshVoteDetailsForUser(userAddress: string, providedEthos?: string): Promise<{
+  updatedCount: number;
+  details: Array<{ agentAddress: string; proposalId: string; updated: boolean }>;
+}> {
+  const summary: { updatedCount: number; details: Array<{ agentAddress: string; proposalId: string; updated: boolean }> } = {
+    updatedCount: 0,
+    details: []
+  };
+
+  try {
+    // Get agents for the user
+    const agents = await getAgentsByUserAddress(userAddress);
+    if (!agents || agents.length === 0) {
+      logger.info(`No agents found for user ${userAddress} while refreshing vote details`);
+      return summary;
+    }
+
+    // Use provided ethos or fetch on-chain ethos for the user
+    let userEthos = providedEthos || "";
+    if (!userEthos) {
+      try {
+        const result = await publicClient.readContract({
+          address: DELEGATE_CONTRACT_ADDRESS,
+          abi: DeleGateABI.abi,
+          functionName: 'getUserEthos',
+          args: [userAddress as `0x${string}`]
+        }) as { ethos: string };
+
+        userEthos = (result && result.ethos) ? result.ethos : '';
+      } catch (err) {
+        logger.error(`Failed to read on-chain ethos for user ${userAddress}: ${err instanceof Error ? err.message : String(err)}`);
+        // fallthrough with empty ethos
+      }
+    }
+
+    // Use default ethos if none found
+    if (!userEthos || userEthos.trim().length === 0) {
+      userEthos = "I am a responsible DAO member who values decentralization, transparency, and community governance.";
+    }
+
+    // Process each agent's pending votes
+    for (const agent of agents) {
+      const agentAddress = agent.address;
+      const pendingVotes = await getPendingVoteDetailsForAgent(agentAddress);
+
+      for (const vote of pendingVotes) {
+        try {
+          const needsUpdate = !vote.userEthos || vote.userEthos !== userEthos || !vote.aiResponse || vote.aiResponse.trim().length === 0;
+          if (!needsUpdate) {
+            summary.details.push({ agentAddress, proposalId: vote.proposalId, updated: false });
+            continue;
+          }
+
+          // Build AI directive and regenerate response
+          const directive = process.env.AI_DIRECTIVE || "Suggest a vote for the passed proposal based on the ethos of the user. The result must be only a JSON with two elements: 'vote', which can be yes or no, and 'reason', which is the explanation of the reasons considered for the voting decision. The JSON must be formatted as follows: {\"vote\": \"yes\", \"reason\": \"...\"}.";
+
+          const aiResponse = await fetchOpenAIResponse(
+            `This is the user ethos: ${userEthos}. ${directive}`,
+            vote.proposalText
+          );
+
+          // Parse AI response
+          let aiVoteChoice: 'yes' | 'no' = 'no';
+          let reasoning = aiResponse;
+
+          try {
+            const parsed = JSON.parse(aiResponse);
+            aiVoteChoice = parsed.vote === 'yes' ? 'yes' : 'no';
+            reasoning = parsed.reason || aiResponse;
+          } catch (parseError) {
+            logger.warn(`Failed to parse AI response as JSON for proposal ${vote.proposalId}: ${parseError}`);
+          }
+
+          // Upsert with new AI response and ethos
+          await upsertVoteDetails(
+            agentAddress,
+            vote.proposalId,
+            vote.spaceId,
+            vote.proposalTitle,
+            vote.proposalText,
+            vote.lastUpdated || Date.now(),
+            reasoning,
+            aiVoteChoice,
+            userEthos,
+            userAddress
+          );
+
+          summary.updatedCount += 1;
+          summary.details.push({ agentAddress, proposalId: vote.proposalId, updated: true });
+        } catch (err) {
+          logger.error(`Failed to refresh vote ${vote.proposalId} for agent ${agent.address}: ${err instanceof Error ? err.message : String(err)}`);
+          summary.details.push({ agentAddress, proposalId: vote.proposalId, updated: false });
+        }
+      }
+    }
+
+    logger.info(`Refreshed vote details for user ${userAddress}: updated ${summary.updatedCount} vote(s)`);
+    return summary;
+  } catch (error) {
+    logger.error(`Failed to refresh vote details for user ${userAddress}: ${error instanceof Error ? error.message : String(error)}`);
+    return summary;
   }
 }

@@ -18,15 +18,15 @@ import {
   getVoteStatistics,
   markVoteCompleted,
   upsertVoteDetails,
-  getVoteDetails,
+  getVoteDetailsByUserAddress,
   getUserVoteDetails,
   updateUserVote,
   hasProposalChanged,
   updateProposalCheck,
-  markVoteExpired
+  markVoteExpired,
 } from '../db/service';
 import logger from '../logger';
-import { deployKmsAdapter, getAgentAccountFromAddress, getAgentsByUserAddress, getKmsAddress, publicClient, walletClient, mainnetPublicClient } from '../lib/utils';
+import { deployKmsAdapter, getAgentAccountFromAddress, getAgentsByUserAddress, getKmsAddress, publicClient, walletClient } from '../lib/utils';
 import { Address, getCreateAddress } from 'viem';
 import DeleGateABI from '../artifacts/DeleGate.json';
 import { DELEGATE_CONTRACT_ADDRESS, KEYRING_GATEWAY_CONTRACT_ADDRESS } from '../config';
@@ -186,21 +186,10 @@ app.post('/get-kms', async (req, res) => {
       });
     }
 
-    // For Tally DAOs, we don't need KMS - just return a placeholder
-    if (source === 'tally') {
-      console.info('[Tally] Skipping KMS check for Tally DAO');
-      return res.status(200).json({
-        success: true,
-        kmsAddress: '0x0000000000000000000000000000000000000000',
-        deploymentNeeded: false
-      });
-    }
-
-    // Check if KMS adapter already exists (for Snapshot DAOs)
-    // Use mainnetPublicClient since DeleGate contract is on Ethereum mainnet
+    // Check if KMS adapter already exists
     let kmsAddress: Address | undefined;
     try {
-      kmsAddress = await mainnetPublicClient.readContract({
+      kmsAddress = await publicClient.readContract({
         address: DELEGATE_CONTRACT_ADDRESS,
         abi: DeleGateABI.abi,
         functionName: 'getUserKmsAdapter',
@@ -213,7 +202,6 @@ app.post('/get-kms', async (req, res) => {
 
     console.info('KMS Address:', kmsAddress);
 
-    // Return data including whether deployment was needed
     const result: {
       success: boolean;
       kmsAddress: string;
@@ -898,17 +886,17 @@ app.get('/api/vote-details/:userAddress', async (req, res) => {
 });
 
 /**
- * GET /api/vote-details/:agentAddress/:proposalId - Get specific vote details
+ * GET /api/vote-details/:userAddress/:proposalId - Get specific vote details
  */
-app.get('/api/vote-details/:agentAddress/:proposalId', async (req, res) => {
+app.get('/api/vote-details/:userAddress/:proposalId', async (req, res) => {
   try {
-    const { agentAddress, proposalId } = req.params;
-    
-    if (!agentAddress || !proposalId) {
-      return res.status(400).json({ error: 'Agent address and proposal ID are required' });
+    const { userAddress, proposalId } = req.params;
+
+    if (!userAddress || !proposalId) {
+      return res.status(400).json({ error: 'User address and proposal ID are required' });
     }
     
-    const voteDetails = await getVoteDetails(agentAddress, proposalId);
+    const voteDetails = await getVoteDetailsByUserAddress(userAddress, proposalId);
     
     if (!voteDetails) {
       return res.status(404).json({ error: 'Vote details not found' });
@@ -942,13 +930,15 @@ app.post('/api/vote-details', async (req, res) => {
       proposalText,
       lastUpdated,
       aiResponse,
-      aiVoteChoice
+      aiVoteChoice,
+      userEthos,
+      userAddress
     } = req.body;
     
     if (!agentAddress || !proposalId || !spaceId || !proposalTitle || !proposalText || 
-        lastUpdated === undefined || !aiResponse || !aiVoteChoice) {
+        lastUpdated === undefined || !aiResponse || !aiVoteChoice || !userEthos) {
       return res.status(400).json({ 
-        error: 'Missing required fields: agentAddress, proposalId, spaceId, proposalTitle, proposalText, lastUpdated, aiResponse, aiVoteChoice' 
+        error: 'Missing required fields: agentAddress, proposalId, spaceId, proposalTitle, proposalText, lastUpdated, aiResponse, aiVoteChoice, userEthos' 
       });
     }
     
@@ -960,7 +950,9 @@ app.post('/api/vote-details', async (req, res) => {
       proposalText,
       lastUpdated,
       aiResponse,
-      aiVoteChoice
+      aiVoteChoice,
+      userEthos,
+      userAddress
     );
     
     if (!voteDetails) {
@@ -1024,15 +1016,15 @@ app.put('/api/vote-details/:agentAddress/:proposalId/vote', async (req, res) => 
  */
 app.post('/api/vote-details/check-proposal', async (req, res) => {
   try {
-    const { userAddress, proposalId, currentText, currentTimestamp } = req.body;
+    const { userAddress, userEthos, proposalId, currentText, currentTimestamp } = req.body;
     
-    if (!userAddress || !proposalId || !currentText || currentTimestamp === undefined) {
+    if (!userAddress || !userEthos || !proposalId || !currentText || currentTimestamp === undefined) {
       return res.status(400).json({ 
-        error: 'Missing required fields: userAddress, proposalId, currentText, currentTimestamp' 
+        error: 'Missing required fields: userAddress, userEthos, proposalId, currentText, currentTimestamp' 
       });
     }
     
-    const hasChanged = await hasProposalChanged(userAddress, proposalId, currentText, currentTimestamp);
+    const hasChanged = await hasProposalChanged(userAddress, userEthos, proposalId, currentText, currentTimestamp);
     
     return res.status(200).json({
       success: true,

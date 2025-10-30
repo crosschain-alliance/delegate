@@ -46,13 +46,12 @@ export async function fetchOpenAIResponse(
   
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
-    dangerouslyAllowBrowser: true,
   });
 
   try {
     console.info('Fetching OpenAI directly');
     const response = await openai.chat.completions.create({
-      model: 'gpt-4.1',
+      model: process.env.AI_MODEL || 'gpt-4.1',
       messages: [
         { role: 'system', content: directive },
         { role: 'user', content: proposal },

@@ -1,10 +1,37 @@
 import cron from 'node-cron';
-import { FETCH_SCHEDULE, DAOS } from './config';
+import { FETCH_SCHEDULE, DAOS, DELEGATE_CONTRACT_ADDRESS } from './config';
 import { fetchProposals, fetchTallyProposals } from './fetcher';
 import { processProposalsForVoting } from './voter';
 import { getAllActiveSpaces, upsertVoteDetails, hasProposalChanged, getAgentsForSpace } from './db/service';
 import { fetchOpenAIResponse } from './ai-parser';
 import logger from './logger';
+import { publicClient } from './lib/utils';
+import DeleGateABI from './artifacts/DeleGate.json';
+
+/**
+ * Fetch user ethos from the DeleGate contract
+ */
+async function getUserEthos(userAddress: string): Promise<string> {
+  try {
+    const result = await publicClient.readContract({
+      address: DELEGATE_CONTRACT_ADDRESS,
+      abi: DeleGateABI.abi,
+      functionName: 'getUserEthos',
+      args: [userAddress as `0x${string}`]
+    }) as { ethos: string };
+    
+    if (result && result.ethos && result.ethos.trim().length > 0) {
+      logger.info(`Retrieved ethos for user ${userAddress}: ${result.ethos.substring(0, 50)}...`);
+      return result.ethos;
+    }
+    
+    logger.warn(`No ethos found for user ${userAddress}, using default`);
+    return "I am a responsible DAO member who values decentralization, transparency, and community governance.";
+  } catch (error) {
+    logger.error(`Failed to fetch ethos for user ${userAddress}: ${error instanceof Error ? error.message : String(error)}`);
+    return "I am a responsible DAO member who values decentralization, transparency, and community governance.";
+  }
+}
 
 /**
  * Starts the scheduler for fetching proposals and scheduling votes
@@ -78,8 +105,22 @@ export async function runFetchAndSchedule(): Promise<void> {
       logger.info(`Found ${agentAddresses.length} unique agents for space ${dao.id}`);
       
       // Process vote details for each agent
-      for (const agentAddress of agentAddresses) {
-        if (!agentAddress) continue;
+      for (const agentData of agentsForSpace) {
+        const agentAddress = agentData.agent.address;
+        const userAddress = agentData.agent.userAddress;
+
+        if (!agentAddress || !userAddress) {
+          logger.warn(`No userAddress found for agent ${agentAddress}, skipping`);
+          continue;
+        }
+
+        // Fetch user ethos from DeleGate contract if userAddress is available
+        const userEthos = await getUserEthos(userAddress);
+
+        if (userEthos.length < 2) {
+          logger.warn(`No user ethos found for user ${userAddress}, skipping`);
+          continue;
+        }
         
         for (const proposal of proposals) {
           // Normalize proposal data between Snapshot and Tally formats
@@ -94,6 +135,7 @@ export async function runFetchAndSchedule(): Promise<void> {
             // Check if proposal has changed
             const hasChanged = await hasProposalChanged(
               agentAddress,
+              userEthos,
               normalizedProposal.id,
               normalizedProposal.body,
               normalizedProposal.end
@@ -101,10 +143,7 @@ export async function runFetchAndSchedule(): Promise<void> {
             
             if (hasChanged) {
               // Generate AI response for this proposal
-              const directive = "Suggest a vote for the passed proposal based on the ethos of the user. The result must be only a JSON with two elements: 'vote', which can be yes or no, and 'reason', which is the explanation of the reasons considered for the voting decision. The JSON must be formatted as follows: {\"vote\": \"yes\", \"reason\": \"...\"}.";
-              
-              // For now, we'll use a generic ethos. In the future, this should be fetched from user profile
-              const userEthos = "I am a responsible DAO member who values decentralization, transparency, and community governance.";
+              const directive = process.env.AI_DIRECTIVE || "Suggest a vote for the passed proposal based on the ethos of the user. The result must be only a JSON with two elements: 'vote', which can be yes or no, and 'reason', which is the explanation of the reasons considered for the voting decision. The JSON must be formatted as follows: {\"vote\": \"yes\", \"reason\": \"...\"}.";
               
               const aiResponse = await fetchOpenAIResponse(
                 `This is the user ethos: ${userEthos}. ${directive}`,
@@ -132,7 +171,9 @@ export async function runFetchAndSchedule(): Promise<void> {
                 normalizedProposal.body,
                 normalizedProposal.end,
                 reasoning,
-                aiVoteChoice
+                aiVoteChoice,
+                userEthos,
+                userAddress
               );
               
               logger.info(`Saved vote details for agent ${agentAddress}, proposal ${normalizedProposal.id}`);

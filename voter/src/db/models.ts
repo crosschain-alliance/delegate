@@ -47,6 +47,7 @@ export interface IVoteDetails extends Document {
   aiResponse: string;         // AI reasoning text
   aiVoteChoice: 'yes' | 'no'; // AI suggested vote
   userVoteChoice?: 'yes' | 'no'; // Actual user vote (if different from AI)
+  userEthos: string;          // User's ethos used for AI decision
   status: 'pending' | 'voted' | 'expired';
   createdAt: Date;
   updatedAt: Date;
@@ -123,6 +124,7 @@ const VoteDetailsSchema = new Schema<IVoteDetails>(
     aiResponse: { type: String, required: true },
     aiVoteChoice: { type: String, required: true, enum: ['yes', 'no'] },
     userVoteChoice: { type: String, enum: ['yes', 'no'] },
+    userEthos: { type: String, required: true },
     status: { type: String, required: true, enum: ['pending', 'voted', 'expired'], default: 'pending' },
     lastChecked: { type: Date, default: Date.now }
   },
