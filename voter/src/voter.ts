@@ -10,6 +10,8 @@ import DeleGateABI from './artifacts/DeleGate.json';
 import { ethers } from 'ethers';
 import GovernorABI from './artifacts/Governor.json';
 import { inspect } from 'util';
+import { createClientsFromGovernorId, createMultiChainWalletClient, createMultiChainPublicClient, getChainFromGovernorId, getAddressFromGovernorId } from './lib/multichain-wallet';
+import { parseEther, formatEther } from 'viem';
 
 const hub = 'https://hub.snapshot.org'; 
 const client = new snapshot.Client712(hub);
@@ -235,15 +237,20 @@ export async function castSnapshotVote(
 /**
  * Casts a Tally vote directly on the Governor contract (on-chain)
  * SEPARATE from Snapshot voting - does not affect DeleGate contract usage
+ * 
+ * @param proposalId - The proposal ID to vote on
+ * @param governorId - The Tally governor ID in format: eip155:chainId:governorAddress
+ * @param privateKey - The private key of the voting account
+ * @param agentAddress - The agent address casting the vote
  */
 export async function castTallyVote(
   proposalId: string,
-  governorAddress: string,
+  governorId: string,
   privateKey: string,
   agentAddress: string
 ): Promise<void> {
   try {
-    logger.info(`Casting Tally vote for proposal ${proposalId} on governor ${governorAddress}`);
+    logger.info(`Casting Tally vote for proposal ${proposalId} on governor ${governorId}`);
 
     const voteDetails = await getVoteDetailsByAgentAddress(agentAddress, proposalId);
 
@@ -251,34 +258,48 @@ export async function castTallyVote(
       throw new Error(`Vote details not found for agent ${agentAddress} and proposal ${proposalId}`);
     }
 
-    // Setup Arbitrum provider and wallet
-    const TALLY_RPC_URL = process.env.TALLY_RPC_URL || 'https://arb1.arbitrum.io/rpc';
-    const provider = new ethers.providers.JsonRpcProvider(TALLY_RPC_URL);
-    const wallet = new ethers.Wallet(privateKey, provider);
+    // Create multi-chain clients based on governor ID
+    const { walletClient: viemWalletClient, publicClient: viemPublicClient, chain, governorAddress } = 
+      createClientsFromGovernorId(governorId, privateKey as `0x${string}`);
+
+    logger.info(`Using chain: ${chain.name} (${chain.id}) for governor ${governorAddress}`);
 
     // Check agent balance before attempting to vote
-    const balance = await provider.getBalance(agentAddress);
-    const balanceInEth = ethers.utils.formatEther(balance);
-    logger.info(`Agent ${agentAddress} balance: ${balanceInEth} ETH`);
+    const balance = await viemPublicClient.getBalance({ address: agentAddress as `0x${string}` });
+    const balanceInEth = formatEther(balance);
+    logger.info(`Agent ${agentAddress} balance: ${balanceInEth} ${chain.nativeCurrency.symbol}`);
 
-    if (balance.lt(ethers.utils.parseEther('0.001'))) {
-      throw new Error(`Agent ${agentAddress} has insufficient funds (${balanceInEth} ETH). Minimum required: 0.001 ETH for gas fees. Please fund the agent wallet on Arbitrum.`);
+    const minBalance = parseEther('0.001');
+    if (balance < minBalance) {
+      throw new Error(
+        `Agent ${agentAddress} has insufficient funds (${balanceInEth} ${chain.nativeCurrency.symbol}). ` +
+        `Minimum required: 0.001 ${chain.nativeCurrency.symbol} for gas fees. ` +
+        `Please fund the agent wallet on ${chain.name}.`
+      );
     }
 
-    // Initialize Governor contract
-    const governor = new ethers.Contract(governorAddress, GovernorABI, wallet);
-
     const support = convertVoteChoice(voteDetails.aiVoteChoice);
-    const proposalIdBN = ethers.BigNumber.from(proposalId);
+    
+    logger.info(`Submitting vote: proposalId=${proposalId}, support=${support}, chain=${chain.name}`);
 
-    logger.info(`Submitting vote: proposalId=${proposalId}, support=${support} (For)`);
+    // Use Viem's writeContract to call castVote on the Governor contract
+    const hash = await viemWalletClient.writeContract({
+      address: governorAddress,
+      abi: GovernorABI,
+      functionName: 'castVote',
+      args: [BigInt(proposalId), support],
+      account: viemWalletClient.account!,
+      chain,
+    });
 
-    // Call castVote on the Governor contract
-    const tx = await governor.castVote(proposalIdBN, support);
-    logger.info(`Tally vote transaction submitted: ${tx.hash}`);
+    logger.info(`Tally vote transaction submitted: ${hash} on ${chain.name}`);
 
-    const receipt = await tx.wait();
-    logger.info(`Tally vote transaction confirmed in block ${receipt.blockNumber}: ${tx.hash}`);
+    // Wait for transaction confirmation
+    const receipt = await viemPublicClient.waitForTransactionReceipt({ hash });
+    
+    logger.info(
+      `Tally vote transaction confirmed in block ${receipt.blockNumber} on ${chain.name}: ${hash}`
+    );
   } catch (error) {
     logger.error(`Tally vote failed for proposal ${proposalId}: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
